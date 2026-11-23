@@ -1,0 +1,634 @@
+{
+  "version": 1,
+  "systems": [
+    {
+      "id": "nes",
+      "code": "NES",
+      "name": "Nintendo",
+      "kind": "cart",
+      "folders": [
+        "nes",
+        "famicom"
+      ],
+      "extensions": [
+        "nes",
+        "fds",
+        "unf",
+        "unif",
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "snes",
+      "code": "SNES",
+      "name": "Super Nintendo",
+      "kind": "cart",
+      "folders": [
+        "snes",
+        "sfc"
+      ],
+      "extensions": [
+        "sfc",
+        "smc",
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "genesis",
+      "code": "GEN",
+      "name": "Genesis",
+      "kind": "cart",
+      "folders": [
+        "genesis",
+        "megadrive"
+      ],
+      "extensions": [
+        "md",
+        "gen",
+        "smd",
+        "bin",
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "mastersystem",
+      "code": "SMS",
+      "name": "Master System",
+      "kind": "cart",
+      "folders": [
+        "mastersystem"
+      ],
+      "extensions": [
+        "sms",
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "gamegear",
+      "code": "GG",
+      "name": "Game Gear",
+      "kind": "handheld",
+      "folders": [
+        "gamegear"
+      ],
+      "extensions": [
+        "gg",
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "segacd",
+      "code": "SCD",
+      "name": "Sega CD",
+      "kind": "disc",
+      "folders": [
+        "segacd",
+        "megacd"
+      ],
+      "extensions": [
+        "chd",
+        "cue",
+        "iso",
+        "m3u"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "gb",
+      "code": "GB",
+      "name": "Game Boy",
+      "kind": "handheld",
+      "folders": [
+        "gb"
+      ],
+      "extensions": [
+        "gb",
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "gbc",
+      "code": "GBC",
+      "name": "Game Boy Color",
+      "kind": "handheld",
+      "folders": [
+        "gbc"
+      ],
+      "extensions": [
+        "gbc",
+        "gb",
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "gba",
+      "code": "GBA",
+      "name": "Game Boy Advance",
+      "kind": "handheld",
+      "folders": [
+        "gba"
+      ],
+      "extensions": [
+        "gba",
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "tg16",
+      "code": "TG16",
+      "name": "TurboGrafx-16",
+      "kind": "cart",
+      "folders": [
+        "tg16",
+        "pcengine"
+      ],
+      "extensions": [
+        "pce",
+        "chd",
+        "cue",
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "arcade",
+      "code": "ARC",
+      "name": "Arcade",
+      "kind": "cart",
+      "folders": [
+        "arcade",
+        "mame",
+        "fbneo"
+      ],
+      "extensions": [
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "neogeo",
+      "code": "NEO",
+      "name": "Neo Geo",
+      "kind": "cart",
+      "folders": [
+        "neogeo"
+      ],
+      "extensions": [
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "psx",
+      "code": "PS1",
+      "name": "PlayStation",
+      "kind": "disc",
+      "folders": [
+        "psx"
+      ],
+      "extensions": [
+        "chd",
+        "cue",
+        "pbp",
+        "iso",
+        "m3u",
+        "img",
+        "bin"
+      ],
+      "emulator": {
+        "name": "DuckStation"
+      },
+      "alternates": [
+        {
+          "name": "RetroArch (SwanStation)"
+        }
+      ],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "n64",
+      "code": "N64",
+      "name": "Nintendo 64",
+      "kind": "cart",
+      "folders": [
+        "n64"
+      ],
+      "extensions": [
+        "z64",
+        "n64",
+        "v64",
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "RetroArch (Mupen64Plus-Next)"
+      },
+      "alternates": [
+        {
+          "name": "Mupen64Plus FZ"
+        }
+      ],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "nds",
+      "code": "NDS",
+      "name": "Nintendo DS",
+      "kind": "dual",
+      "folders": [
+        "nds"
+      ],
+      "extensions": [
+        "nds",
+        "zip",
+        "7z"
+      ],
+      "emulator": {
+        "name": "WatermelonDS"
+      },
+      "alternates": [
+        {
+          "name": "melonDS"
+        }
+      ],
+      "support": "full",
+      "dualScreen": true
+    },
+    {
+      "id": "n3ds",
+      "code": "3DS",
+      "name": "Nintendo 3DS",
+      "kind": "dual",
+      "folders": [
+        "n3ds",
+        "3ds"
+      ],
+      "extensions": [
+        "3ds",
+        "cci",
+        "cxi",
+        "cia",
+        "app"
+      ],
+      "emulator": {
+        "name": "Azahar"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": true
+    },
+    {
+      "id": "gc",
+      "code": "GC",
+      "name": "GameCube",
+      "kind": "disc",
+      "folders": [
+        "gc",
+        "gamecube"
+      ],
+      "extensions": [
+        "iso",
+        "rvz",
+        "gcz",
+        "gcm",
+        "ciso"
+      ],
+      "emulator": {
+        "name": "Dolphin"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "wii",
+      "code": "WII",
+      "name": "Wii",
+      "kind": "disc",
+      "folders": [
+        "wii"
+      ],
+      "extensions": [
+        "iso",
+        "rvz",
+        "wbfs",
+        "gcz",
+        "wad",
+        "ciso"
+      ],
+      "emulator": {
+        "name": "Dolphin"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "psp",
+      "code": "PSP",
+      "name": "PSP",
+      "kind": "handheld",
+      "folders": [
+        "psp"
+      ],
+      "extensions": [
+        "iso",
+        "cso",
+        "chd",
+        "pbp"
+      ],
+      "emulator": {
+        "name": "PPSSPP"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "ps2",
+      "code": "PS2",
+      "name": "PlayStation 2",
+      "kind": "disc",
+      "folders": [
+        "ps2"
+      ],
+      "extensions": [
+        "iso",
+        "chd",
+        "cso",
+        "gz",
+        "bin"
+      ],
+      "emulator": {
+        "name": "ARMSX2"
+      },
+      "alternates": [
+        {
+          "name": "NetherSX2"
+        }
+      ],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "switch",
+      "code": "NSW",
+      "name": "Switch",
+      "kind": "handheld",
+      "folders": [
+        "switch"
+      ],
+      "extensions": [
+        "nsp",
+        "xci",
+        "nsz",
+        "xcz"
+      ],
+      "emulator": {
+        "name": "Eden"
+      },
+      "alternates": [
+        {
+          "name": "Kenji-NX"
+        }
+      ],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "dreamcast",
+      "code": "DC",
+      "name": "Dreamcast",
+      "kind": "disc",
+      "folders": [
+        "dreamcast"
+      ],
+      "extensions": [
+        "chd",
+        "gdi",
+        "cdi",
+        "cue",
+        "m3u"
+      ],
+      "emulator": {
+        "name": "Flycast"
+      },
+      "alternates": [],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "saturn",
+      "code": "SAT",
+      "name": "Saturn",
+      "kind": "disc",
+      "folders": [
+        "saturn"
+      ],
+      "extensions": [
+        "chd",
+        "cue",
+        "iso",
+        "m3u",
+        "ccd",
+        "mds"
+      ],
+      "emulator": {
+        "name": "Yaba Sanshiro 2"
+      },
+      "alternates": [
+        {
+          "name": "RetroArch (Beetle Saturn)"
+        }
+      ],
+      "support": "full",
+      "dualScreen": false
+    },
+    {
+      "id": "xbox",
+      "code": "XBOX",
+      "name": "Xbox",
+      "kind": "disc",
+      "folders": [
+        "xbox"
+      ],
+      "extensions": [
+        "iso"
+      ],
+      "emulator": {
+        "name": "hakuX"
+      },
+      "alternates": [],
+      "support": "install-first",
+      "dualScreen": false
+    },
+    {
+      "id": "psvita",
+      "code": "VITA",
+      "name": "PS Vita",
+      "kind": "handheld",
+      "folders": [
+        "psvita"
+      ],
+      "extensions": [
+        "vpk",
+        "psvita"
+      ],
+      "emulator": {
+        "name": "Vita3K"
+      },
+      "alternates": [],
+      "support": "install-first",
+      "dualScreen": false
+    },
+    {
+      "id": "ps3",
+      "code": "PS3",
+      "name": "PlayStation 3",
+      "kind": "disc",
+      "folders": [
+        "ps3"
+      ],
+      "extensions": [
+        "iso",
+        "pkg",
+        "ps3"
+      ],
+      "emulator": {
+        "name": "aPS3e"
+      },
+      "alternates": [
+        {
+          "name": "RPCSX"
+        }
+      ],
+      "support": "experimental",
+      "dualScreen": false
+    },
+    {
+      "id": "xbox360",
+      "code": "X360",
+      "name": "Xbox 360",
+      "kind": "disc",
+      "folders": [
+        "xbox360"
+      ],
+      "extensions": [
+        "iso",
+        "xex"
+      ],
+      "emulator": {
+        "name": "aX360e"
+      },
+      "alternates": [
+        {
+          "name": "X360 Mobile"
+        }
+      ],
+      "support": "experimental",
+      "dualScreen": false
+    },
+    {
+      "id": "wiiu",
+      "code": "WIIU",
+      "name": "Wii U",
+      "kind": "disc",
+      "folders": [
+        "wiiu"
+      ],
+      "extensions": [
+        "wua",
+        "wud",
+        "wux",
+        "rpx"
+      ],
+      "emulator": {
+        "name": "Cemu"
+      },
+      "alternates": [],
+      "support": "experimental",
+      "dualScreen": false
+    }
+  ]
+}

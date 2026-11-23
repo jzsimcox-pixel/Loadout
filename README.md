@@ -26,8 +26,8 @@ already on the device.
 
 ## Building
 
-Every push builds a debug APK with GitHub Actions. Download it from the run's
-Artifacts section.
+Every push builds a debug APK with GitHub Actions and posts it to the Releases
+page as "Test build".
 
 To build locally:
 

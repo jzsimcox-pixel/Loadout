@@ -107,3 +107,28 @@ class InstallTest {
         assertEquals("MediaTek MT6893", Chipsets.friendly("MediaTek MT6893"))
     }
 }
+
+class AppMatcherTest {
+    private fun emulator(name: String, vararg appNames: String) =
+        app.loadout.data.Emulator(name = name, appNames = appNames.toList())
+
+    @Test
+    fun matchesByVisibleNameIgnoringCaseAndPunctuation() {
+        assertTrue(app.loadout.install.AppMatcher.matches(emulator("Azahar"), "Azahar"))
+        assertTrue(app.loadout.install.AppMatcher.matches(emulator("WatermelonDS"), "watermelon DS"))
+        assertTrue(app.loadout.install.AppMatcher.matches(emulator("RetroArch (Mupen64Plus-Next)"), "RetroArch"))
+    }
+
+    @Test
+    fun matchesListedAlternativeNames() {
+        assertTrue(app.loadout.install.AppMatcher.matches(emulator("Dolphin", "Dolphin Emulator"), "Dolphin Emulator"))
+        assertTrue(app.loadout.install.AppMatcher.matches(emulator("PPSSPP", "PPSSPP Gold"), "PPSSPP Gold"))
+    }
+
+    @Test
+    fun doesNotMatchOtherApps() {
+        assertEquals(false, app.loadout.install.AppMatcher.matches(emulator("Eden"), "Garden Planner"))
+        assertEquals(false, app.loadout.install.AppMatcher.matches(emulator("Azahar"), ""))
+        assertEquals(false, app.loadout.install.AppMatcher.matches(emulator("Dolphin"), "Dolphin Browser"))
+    }
+}

@@ -347,6 +347,8 @@ fun DetailScreen(
     on: Boolean,
     installState: InstallState,
     onInstall: () -> Unit,
+    onAllowInstalls: () -> Unit,
+    onCancelInstall: () -> Unit,
     onToggle: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -354,7 +356,9 @@ fun DetailScreen(
     val folder = scan?.folderFor(recipe.id)
     val primaryFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { requestFocusSafely(primaryFocus) }
-    val canInstall = recipe.emulator.source != null
+    // An emulator that another source keeps updated gets no install button: Loadout leaves it alone.
+    val managedElsewhere = installState is InstallState.Installed && installState.managedBy != null
+    val showInstallButton = recipe.emulator.source != null && !managedElsewhere
 
     Column(
         modifier = Modifier
@@ -423,21 +427,37 @@ fun DetailScreen(
                 Label(supportNote(recipe.support), size = 13.sp, color = Palette.Muted)
                 Spacer(Modifier.height(2.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (canInstall && !installState.busy) {
+                    if (showInstallButton) {
                         ActionButton(
-                            text = if (installState is InstallState.Installed) "Check for update" else "Install ${recipe.emulator.name}",
-                            onClick = onInstall,
-                            primary = installState !is InstallState.Installed,
+                            text = when (installState) {
+                                InstallState.NeedsPermission -> "Allow installs"
+                                InstallState.Checking, is InstallState.Downloading -> "Working…"
+                                InstallState.WaitingForApproval -> "Try again"
+                                is InstallState.Installed -> "Check for update"
+                                else -> "Install ${recipe.emulator.name}"
+                            },
+                            onClick = when {
+                                installState == InstallState.NeedsPermission -> onAllowInstalls
+                                installState.busy -> ({})
+                                else -> onInstall
+                            },
+                            primary = installState !is InstallState.Installed && !installState.busy,
                             modifier = Modifier.focusRequester(primaryFocus),
                         )
                     }
+                    if (installState == InstallState.WaitingForApproval) {
+                        ActionButton(text = "Cancel install", onClick = onCancelInstall)
+                    }
+                    ActionButton(
+                        text = "Back",
+                        onClick = onBack,
+                        modifier = if (showInstallButton) Modifier else Modifier.focusRequester(primaryFocus),
+                    )
                     ActionButton(
                         text = if (on) "Remove from setup" else "Add to setup",
                         onClick = onToggle,
                         textColor = if (on) Palette.Warn else Palette.Text,
-                        modifier = if (canInstall && !installState.busy) Modifier else Modifier.focusRequester(primaryFocus),
                     )
-                    ActionButton(text = "Back", onClick = onBack)
                 }
             }
         }
@@ -457,10 +477,17 @@ private fun installStatusText(emulator: Emulator, state: InstallState): String =
         } else {
             "Press Install to check. If ${emulator.name} is already on this device and current, nothing is changed."
         }
+    InstallState.NeedsPermission ->
+        "Android needs your OK before Loadout can install apps. Press Allow installs, switch it on, come back, then press Install."
     InstallState.Checking -> "Checking the latest release…"
     is InstallState.Downloading -> "Downloading… ${state.percent}%"
-    InstallState.WaitingForApproval -> "Waiting for you to approve the install."
-    is InstallState.Installed -> "Installed · version ${state.version}"
+    InstallState.WaitingForApproval ->
+        "Waiting for you to approve the install. If no prompt is showing, press Try again."
+    is InstallState.Installed -> when (state.managedBy) {
+        null -> "Installed · version ${state.version}"
+        "the Play Store" -> "Installed · version ${state.version} · the Play Store keeps it updated, so Loadout leaves it alone."
+        else -> "Installed · version ${state.version} · it came from another source, so Loadout leaves it alone."
+    }
     is InstallState.Failed -> state.message
 }
 

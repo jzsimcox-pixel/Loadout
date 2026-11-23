@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "systems": [
     {
       "id": "nes",
@@ -19,7 +19,10 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -41,7 +44,10 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -65,7 +71,10 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -85,7 +94,10 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -105,7 +117,10 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -127,7 +142,10 @@
         "m3u"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -147,7 +165,10 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -168,7 +189,10 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -188,7 +212,10 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -211,7 +238,10 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -232,7 +262,10 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -251,7 +284,10 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch"
+        "name": "RetroArch",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -279,7 +315,10 @@
       },
       "alternates": [
         {
-          "name": "RetroArch (SwanStation)"
+          "name": "RetroArch (SwanStation)",
+          "appNames": [
+            "RetroArch Plus"
+          ]
         }
       ],
       "support": "full",
@@ -301,11 +340,18 @@
         "7z"
       ],
       "emulator": {
-        "name": "RetroArch (Mupen64Plus-Next)"
+        "name": "RetroArch (Mupen64Plus-Next)",
+        "appNames": [
+          "RetroArch Plus"
+        ]
       },
       "alternates": [
         {
-          "name": "Mupen64Plus FZ"
+          "name": "Mupen64Plus FZ",
+          "appNames": [
+            "M64Plus FZ",
+            "M64Plus FZ Pro"
+          ]
         }
       ],
       "support": "full",
@@ -389,7 +435,10 @@
         "ciso"
       ],
       "emulator": {
-        "name": "Dolphin"
+        "name": "Dolphin",
+        "appNames": [
+          "Dolphin Emulator"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -412,7 +461,10 @@
         "ciso"
       ],
       "emulator": {
-        "name": "Dolphin"
+        "name": "Dolphin",
+        "appNames": [
+          "Dolphin Emulator"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -433,7 +485,10 @@
         "pbp"
       ],
       "emulator": {
-        "name": "PPSSPP"
+        "name": "PPSSPP",
+        "appNames": [
+          "PPSSPP Gold"
+        ]
       },
       "alternates": [],
       "support": "full",
@@ -480,7 +535,10 @@
       },
       "alternates": [
         {
-          "name": "NetherSX2"
+          "name": "NetherSX2",
+          "appNames": [
+            "AetherSX2"
+          ]
         }
       ],
       "support": "full",
@@ -550,11 +608,17 @@
         "mds"
       ],
       "emulator": {
-        "name": "Yaba Sanshiro 2"
+        "name": "Yaba Sanshiro 2",
+        "appNames": [
+          "Yaba Sanshiro 2 Pro"
+        ]
       },
       "alternates": [
         {
-          "name": "RetroArch (Beetle Saturn)"
+          "name": "RetroArch (Beetle Saturn)",
+          "appNames": [
+            "RetroArch Plus"
+          ]
         }
       ],
       "support": "full",

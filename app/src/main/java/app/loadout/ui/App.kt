@@ -114,6 +114,14 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
                     on = recipe.id in chosen,
                     installState = InstallManager.states[recipe.emulator.name] ?: InstallState.Idle,
                     onInstall = { InstallManager.install(context, recipe.emulator) },
+                    onAllowInstalls = {
+                        try {
+                            context.startActivity(InstallManager.permissionIntent(context))
+                        } catch (_: ActivityNotFoundException) {
+                            // No such settings page on this device. Android will ask during the install instead.
+                        }
+                    },
+                    onCancelInstall = { InstallManager.cancel(context, recipe.emulator) },
                     onToggle = { toggle(recipe.id) },
                     onBack = { screen = if (current.fromReview) Screen.Review else Screen.Systems },
                 )

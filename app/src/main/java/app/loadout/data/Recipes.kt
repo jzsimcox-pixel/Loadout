@@ -27,6 +27,8 @@ data class Emulator(
     val name: String,
     /** Null means Loadout cannot install this emulator yet. */
     val source: Source? = null,
+    /** Other names the installed app may show under, such as a paid edition. */
+    val appNames: List<String> = emptyList(),
 )
 
 /**

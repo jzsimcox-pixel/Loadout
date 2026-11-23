@@ -17,7 +17,30 @@ android {
         versionName = "0.1.0"
     }
 
+    // When the build provides a shared signing key, every build is signed the
+    // same way, so a new build installs over the old one. Without it, Android's
+    // default debug key is used.
+    val sharedKeystore = System.getenv("LOADOUT_KEYSTORE")
+    val sharedPassword = System.getenv("LOADOUT_KEYSTORE_PASSWORD")
+    val useSharedKey = !sharedKeystore.isNullOrBlank() && !sharedPassword.isNullOrBlank()
+
+    signingConfigs {
+        if (useSharedKey) {
+            create("shared") {
+                storeFile = file(sharedKeystore!!)
+                storePassword = sharedPassword
+                keyAlias = "loadout"
+                keyPassword = sharedPassword
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            if (useSharedKey) {
+                signingConfig = signingConfigs.getByName("shared")
+            }
+        }
         release {
             isMinifyEnabled = false
         }

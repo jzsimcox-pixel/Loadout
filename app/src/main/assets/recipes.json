@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "systems": [
     {
       "id": "nes",
@@ -325,7 +325,12 @@
         "7z"
       ],
       "emulator": {
-        "name": "WatermelonDS"
+        "name": "WatermelonDS",
+        "source": {
+          "type": "github",
+          "repo": "SapphireRhodonite/WatermelonDS",
+          "assets": []
+        }
       },
       "alternates": [
         {
@@ -352,7 +357,16 @@
         "app"
       ],
       "emulator": {
-        "name": "Azahar"
+        "name": "Azahar",
+        "source": {
+          "type": "github",
+          "repo": "azahar-emu/azahar",
+          "assets": [
+            {
+              "match": "vanilla"
+            }
+          ]
+        }
       },
       "alternates": [],
       "support": "full",
@@ -441,7 +455,28 @@
         "bin"
       ],
       "emulator": {
-        "name": "ARMSX2"
+        "name": "ARMSX2",
+        "source": {
+          "type": "github",
+          "repo": "ARMSX2/ARMSX2",
+          "assets": [
+            {
+              "match": "a15",
+              "minSdk": 35
+            },
+            {
+              "match": "a13",
+              "minSdk": 33
+            },
+            {
+              "match": "a11",
+              "minSdk": 30
+            },
+            {
+              "match": "legacy"
+            }
+          ]
+        }
       },
       "alternates": [
         {
@@ -584,7 +619,8 @@
         }
       ],
       "support": "experimental",
-      "dualScreen": false
+      "dualScreen": false,
+      "folderGames": true
     },
     {
       "id": "xbox360",
@@ -628,7 +664,8 @@
       },
       "alternates": [],
       "support": "experimental",
-      "dualScreen": false
+      "dualScreen": false,
+      "folderGames": true
     }
   ]
 }

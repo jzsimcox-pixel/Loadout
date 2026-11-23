@@ -11,11 +11,13 @@ This is a work in progress.
 - Scans the SD card read-only, finds an ES-DE style ROMs folder, and counts
   games per system.
 - Shows a grid of 28 systems with the ones that already have games selected.
+- Installs and updates emulators that have a download source set up
+  (Nintendo DS, 3DS and PlayStation 2 so far). Android asks before each install.
+- Creates missing system folders on the card after showing the list.
 
 ## Planned
 
-- Install and update emulators.
-- Create missing system folders on the card.
+- Download sources for the remaining emulators.
 - Point ES-DE at the installed emulators.
 - Tuned settings, BIOS placement, GPU drivers, hotkeys.
 

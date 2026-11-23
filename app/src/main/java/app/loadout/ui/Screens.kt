@@ -3,6 +3,7 @@ package app.loadout.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,9 +46,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.loadout.data.Catalog
+import app.loadout.data.Emulator
 import app.loadout.data.SystemRecipe
 import app.loadout.device.DeviceInfo
+import app.loadout.install.InstallState
 import app.loadout.storage.CardScan
+import app.loadout.storage.FolderPlanner
 import app.loadout.storage.Storage
 import app.loadout.storage.VolumeScan
 
@@ -156,7 +160,7 @@ fun DetectScreen(
                             primary = true,
                             modifier = Modifier.focusRequester(primaryFocus),
                         )
-                        ActionButton(text = "Continue without scanning", onClick = onContinue)
+                        ActionButton(text = "Skip scan", onClick = onContinue)
                     }
                 }
             }
@@ -341,6 +345,8 @@ fun DetailScreen(
     scan: CardScan?,
     device: DeviceInfo,
     on: Boolean,
+    installState: InstallState,
+    onInstall: () -> Unit,
     onToggle: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -348,6 +354,7 @@ fun DetailScreen(
     val folder = scan?.folderFor(recipe.id)
     val primaryFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { requestFocusSafely(primaryFocus) }
+    val canInstall = recipe.emulator.source != null
 
     Column(
         modifier = Modifier
@@ -385,6 +392,10 @@ fun DetailScreen(
                     folder != null,
                     if (folder != null) "Folder found: ${folder.name}" else "Folder: ${recipe.folders.first()} (not on card)",
                 )
+                StatusLine(
+                    installState is InstallState.Installed,
+                    if (installState is InstallState.Installed) "${recipe.emulator.name} installed" else "${recipe.emulator.name} not confirmed",
+                )
                 if (recipe.dualScreen) {
                     StatusLine(
                         device.dualScreen,
@@ -404,39 +415,59 @@ fun DetailScreen(
                 for (alternate in recipe.alternates) {
                     EmulatorRow(alternate.name, "Alternate", highlighted = false)
                 }
-                Spacer(Modifier.height(4.dp))
-                Label(supportNote(recipe.support), size = 13.sp, color = Palette.Muted)
                 Label(
-                    "Installing and updating emulators arrives in the next build.",
+                    installStatusText(recipe.emulator, installState),
                     size = 13.sp,
-                    color = Palette.Muted,
+                    color = if (installState is InstallState.Failed) Palette.Warn else Palette.Text,
                 )
-                Spacer(Modifier.height(4.dp))
+                Label(supportNote(recipe.support), size = 13.sp, color = Palette.Muted)
+                Spacer(Modifier.height(2.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (canInstall && !installState.busy) {
+                        ActionButton(
+                            text = if (installState is InstallState.Installed) "Check for update" else "Install ${recipe.emulator.name}",
+                            onClick = onInstall,
+                            primary = installState !is InstallState.Installed,
+                            modifier = Modifier.focusRequester(primaryFocus),
+                        )
+                    }
                     ActionButton(
                         text = if (on) "Remove from setup" else "Add to setup",
                         onClick = onToggle,
-                        primary = !on,
                         textColor = if (on) Palette.Warn else Palette.Text,
-                        modifier = Modifier.focusRequester(primaryFocus),
+                        modifier = if (canInstall && !installState.busy) Modifier else Modifier.focusRequester(primaryFocus),
                     )
-                    ActionButton(text = "Back to systems", onClick = onBack)
+                    ActionButton(text = "Back", onClick = onBack)
                 }
             }
         }
         BottomBar {
             KeyHint("A", "Select")
-            KeyHint("B", "Back to systems")
+            KeyHint("B", "Back")
             Spacer(Modifier.weight(1f))
             Label("Removing a system keeps your games and saves.", size = 13.sp, color = Palette.Muted)
         }
     }
 }
 
+private fun installStatusText(emulator: Emulator, state: InstallState): String = when (state) {
+    InstallState.Idle ->
+        if (emulator.source == null) {
+            "Loadout can't install ${emulator.name} yet. Its download source hasn't been set up."
+        } else {
+            "Press Install to check. If ${emulator.name} is already on this device and current, nothing is changed."
+        }
+    InstallState.Checking -> "Checking the latest release…"
+    is InstallState.Downloading -> "Downloading… ${state.percent}%"
+    InstallState.WaitingForApproval -> "Waiting for you to approve the install."
+    is InstallState.Installed -> "Installed · version ${state.version}"
+    is InstallState.Failed -> state.message
+}
+
 private fun supportNote(support: String): String = when (support) {
-    "experimental" -> "Experimental on Android. Loadout will install it and create folders, but few games run well."
-    "install-first" -> "Loadout will install it and create folders. Tuned settings come later."
-    else -> "Fully supported: install, folders and tuned settings."
+    "experimental" -> "Experimental on Android. Few games run well."
+    "install-first" -> "Tuned settings for this system come later."
+    else -> "Fully supported system."
 }
 
 @Composable
@@ -482,13 +513,22 @@ private fun EmulatorRow(name: String, tag: String, highlighted: Boolean) {
 @Composable
 fun ReviewScreen(
     catalog: Catalog,
-    scan: CardScan?,
+    volume: VolumeScan?,
     selected: Set<String>,
+    installStates: Map<String, InstallState>,
+    onOpen: (String) -> Unit,
+    onFoldersCreated: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val scan = volume?.card
     val chosen = catalog.systems.filter { it.id in selected }
-    val backFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { requestFocusSafely(backFocus) }
+    val missing = remember(volume, selected) {
+        if (volume != null) FolderPlanner.plan(volume.root, volume.card, catalog, selected) else emptyList()
+    }
+    var confirming by remember { mutableStateOf(false) }
+    var notice by remember { mutableStateOf<String?>(null) }
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(confirming) { requestFocusSafely(firstFocus) }
 
     Column(
         modifier = Modifier
@@ -497,9 +537,13 @@ fun ReviewScreen(
             .padding(ScreenPadding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        TopBar("Your setup", "${chosen.size} systems")
+        TopBar(if (confirming) "Create folders" else "Your setup", "${chosen.size} systems")
         Label(
-            "This build stops here. Installing emulators and creating folders comes next. Nothing on the card has been changed.",
+            text = when {
+                confirming -> "Loadout will create these empty folders. Nothing that exists is changed."
+                notice != null -> notice.orEmpty()
+                else -> "Open a system to install its emulator. Systems without an installer yet are marked."
+            },
             size = 13.sp,
             color = Palette.Muted,
         )
@@ -510,30 +554,93 @@ fun ReviewScreen(
                 .clip(RoundedCornerShape(14.dp))
                 .background(Palette.Surface)
                 .border(1.dp, Palette.Border, RoundedCornerShape(14.dp))
-                .padding(horizontal = 18.dp, vertical = 4.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
-            if (chosen.isEmpty()) {
-                InfoRow("No systems selected", "Go back and pick some", divider = false)
-            }
-            chosen.forEachIndexed { index, recipe ->
-                val folder = scan?.folderFor(recipe.id)
-                val folderText = if (folder != null) "folder found" else "folder to create"
-                InfoRow(
-                    name = "${recipe.code} · ${recipe.name}",
-                    value = "${recipe.emulator.name} · $folderText",
-                    divider = index != chosen.lastIndex,
-                )
+            if (confirming) {
+                for (folder in missing) {
+                    Label(
+                        folder.absolutePath,
+                        size = 13.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    )
+                }
+            } else {
+                if (chosen.isEmpty()) {
+                    Label(
+                        "No systems selected. Go back and pick some.",
+                        size = 14.sp,
+                        color = Palette.Muted,
+                        modifier = Modifier.padding(12.dp),
+                    )
+                }
+                chosen.forEachIndexed { index, recipe ->
+                    val state = installStates[recipe.emulator.name] ?: InstallState.Idle
+                    val emulatorText = when {
+                        state is InstallState.Installed -> "installed"
+                        state is InstallState.Failed -> "install failed"
+                        state.busy -> "working…"
+                        recipe.emulator.source == null -> "no installer yet"
+                        else -> "not confirmed"
+                    }
+                    val folderText = if (scan?.folderFor(recipe.id) != null) "folder found" else "folder missing"
+                    SetupRow(
+                        name = "${recipe.code} · ${recipe.name}",
+                        value = "${recipe.emulator.name} · $emulatorText · $folderText",
+                        onClick = { onOpen(recipe.id) },
+                        modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                    )
+                }
             }
         }
         BottomBar {
+            KeyHint("A", if (confirming) "Select" else "Open")
             KeyHint("B", "Back")
             Spacer(Modifier.weight(1f))
-            ActionButton(
-                text = "Back to systems",
-                onClick = onBack,
-                modifier = Modifier.focusRequester(backFocus),
-            )
+            if (confirming) {
+                ActionButton(text = "Cancel", onClick = { confirming = false })
+                ActionButton(
+                    text = "Create ${missing.size} folders",
+                    primary = true,
+                    modifier = Modifier.focusRequester(firstFocus),
+                    onClick = {
+                        val failed = FolderPlanner.create(missing)
+                        notice = if (failed.isEmpty()) {
+                            "Created ${missing.size} folders."
+                        } else {
+                            "Could not create ${failed.size} of ${missing.size} folders. The card may be read-only."
+                        }
+                        confirming = false
+                        onFoldersCreated()
+                    },
+                )
+            } else {
+                if (missing.isNotEmpty()) {
+                    ActionButton(text = "Create ${missing.size} missing folders", onClick = { confirming = true })
+                }
+                ActionButton(text = "Back to systems", onClick = onBack)
+            }
         }
+    }
+}
+
+@Composable
+private fun SetupRow(name: String, value: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(8.dp)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused }
+            .clip(shape)
+            .border(2.dp, if (focused) Palette.Text else Palette.Surface, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Label(name, size = 13.sp, color = Palette.Muted, maxLines = 1)
+        Spacer(Modifier.width(16.dp))
+        Label(value, size = 14.sp, weight = FontWeight.SemiBold, maxLines = 1)
     }
 }

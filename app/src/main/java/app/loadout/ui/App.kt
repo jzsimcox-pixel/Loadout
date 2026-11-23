@@ -12,6 +12,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import app.loadout.data.Catalog
 import app.loadout.device.DeviceDetector
+import app.loadout.install.InstallManager
+import app.loadout.install.InstallState
 import app.loadout.storage.Prefs
 import app.loadout.storage.Storage
 import app.loadout.storage.VolumeScan
@@ -21,7 +23,7 @@ import kotlinx.coroutines.withContext
 private sealed interface Screen {
     data object Detect : Screen
     data object Systems : Screen
-    data class Detail(val systemId: String) : Screen
+    data class Detail(val systemId: String, val fromReview: Boolean) : Screen
     data object Review : Screen
 }
 
@@ -59,8 +61,10 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
     }
 
     BackHandler(enabled = screen != Screen.Detect) {
-        screen = when (screen) {
-            is Screen.Detail, Screen.Review -> Screen.Systems
+        val current = screen
+        screen = when {
+            current is Screen.Detail && current.fromReview -> Screen.Review
+            current is Screen.Detail || current == Screen.Review -> Screen.Systems
             else -> Screen.Detect
         }
     }
@@ -88,7 +92,7 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
             scan = volume?.card,
             selected = chosen,
             onToggle = { toggle(it) },
-            onDetails = { screen = Screen.Detail(it) },
+            onDetails = { screen = Screen.Detail(it, fromReview = false) },
             onContinue = {
                 Prefs.saveSelection(context, chosen)
                 screen = Screen.Review
@@ -100,22 +104,35 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
             if (recipe == null) {
                 screen = Screen.Systems
             } else {
+                LaunchedEffect(recipe.id, resumeCount) {
+                    InstallManager.refresh(context, recipe.emulator)
+                }
                 DetailScreen(
                     recipe = recipe,
                     scan = volume?.card,
                     device = device,
                     on = recipe.id in chosen,
+                    installState = InstallManager.states[recipe.emulator.name] ?: InstallState.Idle,
+                    onInstall = { InstallManager.install(context, recipe.emulator) },
                     onToggle = { toggle(recipe.id) },
-                    onBack = { screen = Screen.Systems },
+                    onBack = { screen = if (current.fromReview) Screen.Review else Screen.Systems },
                 )
             }
         }
 
-        Screen.Review -> ReviewScreen(
-            catalog = catalog,
-            scan = volume?.card,
-            selected = chosen,
-            onBack = { screen = Screen.Systems },
-        )
+        Screen.Review -> {
+            LaunchedEffect(chosen, resumeCount) {
+                catalog.systems.filter { it.id in chosen }.forEach { InstallManager.refresh(context, it.emulator) }
+            }
+            ReviewScreen(
+                catalog = catalog,
+                volume = volume,
+                selected = chosen,
+                installStates = InstallManager.states,
+                onOpen = { screen = Screen.Detail(it, fromReview = true) },
+                onFoldersCreated = { rescanCount += 1 },
+                onBack = { screen = Screen.Systems },
+            )
+        }
     }
 }

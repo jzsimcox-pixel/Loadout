@@ -35,6 +35,26 @@ object DeviceProfiles {
     }
 }
 
+object Chipsets {
+    private val names = mapOf(
+        "8250" to "Snapdragon 865",
+        "8350" to "Snapdragon 888",
+        "8450" to "Snapdragon 8 Gen 1",
+        "8475" to "Snapdragon 8+ Gen 1",
+        "8550" to "Snapdragon 8 Gen 2",
+        "8650" to "Snapdragon 8 Gen 3",
+        "8750" to "Snapdragon 8 Elite",
+    )
+
+    /** Turns a raw code such as "QTI QCS8550" into "Snapdragon 8 Gen 2 (QCS8550)". */
+    fun friendly(raw: String): String {
+        val code = raw.trim().split(" ").lastOrNull().orEmpty()
+        val digits = Regex("(?:SM|QCS|QCM)(\\d{4})").find(code.uppercase())?.groupValues?.get(1)
+        val name = names[digits] ?: return raw
+        return "$name ($code)"
+    }
+}
+
 object DeviceDetector {
     fun detect(context: Context): DeviceInfo {
         val maker = Build.MANUFACTURER.orEmpty().replaceFirstChar { it.uppercase() }
@@ -52,7 +72,7 @@ object DeviceDetector {
         return DeviceInfo(
             maker = maker,
             model = model,
-            chipset = chipset.ifBlank { "Unknown" },
+            chipset = Chipsets.friendly(chipset).ifBlank { "Unknown" },
             screens = screens,
             profileId = profileId,
             displayName = name.ifBlank { "Android device" },

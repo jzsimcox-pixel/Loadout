@@ -50,7 +50,12 @@ object CardScanner {
             val folder = folderFor(children, recipe)
             if (folder != null) {
                 matched += folder
-                systems[recipe.id] = SystemScan(recipe.id, folder, countGames(folder, recipe.extensions))
+                val games = if (recipe.folderGames) {
+                    countFolderGames(folder, recipe.extensions)
+                } else {
+                    countGames(folder, recipe.extensions)
+                }
+                systems[recipe.id] = SystemScan(recipe.id, folder, games)
             }
         }
         val unsorted = children.filter { it !in matched }.map { it.name }.sorted()
@@ -78,6 +83,18 @@ object CardScanner {
         return null
     }
 
+    /**
+     * For systems that keep each game in its own folder: every folder directly
+     * inside the system folder is one game, and so is every matching loose file.
+     */
+    fun countFolderGames(dir: File, extensions: List<String>): Int {
+        val wanted = extensions.map { it.lowercase() }.toSet()
+        return dir.listFiles().orEmpty().count { entry ->
+            !entry.name.startsWith(".") &&
+                (entry.isDirectory || (entry.isFile && entry.extension.lowercase() in wanted))
+        }
+    }
+
     fun countGames(dir: File, extensions: List<String>, depth: Int = 0): Int {
         val wanted = extensions.map { it.lowercase() }.toSet()
         val entries = dir.listFiles().orEmpty()
@@ -96,4 +113,19 @@ object CardScanner {
         }
         return count
     }
+}
+
+/** Works out which system folders are missing, and creates them when asked. */
+object FolderPlanner {
+    /** Folders that selected systems need but the card does not have yet. */
+    fun plan(volumeRoot: File, scan: CardScan, catalog: Catalog, selected: Set<String>): List<File> {
+        val romsRoot = scan.romsRoot ?: File(volumeRoot, "ROMs")
+        return catalog.systems
+            .filter { it.id in selected && scan.folderFor(it.id) == null }
+            .map { File(romsRoot, it.folders.first()) }
+    }
+
+    /** Creates the folders. Never touches anything that already exists. Returns the ones that failed. */
+    fun create(folders: List<File>): List<File> =
+        folders.filter { folder -> !(folder.isDirectory || folder.mkdirs()) }
 }

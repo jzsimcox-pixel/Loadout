@@ -10,6 +10,7 @@ import app.loadout.data.Catalog
 import java.io.File
 
 data class VolumeScan(
+    val root: File,
     val label: String,
     val removable: Boolean,
     val sizeBytes: Long,
@@ -40,6 +41,7 @@ object Storage {
             .mapNotNull { volume ->
                 val dir: File = volume.directory ?: return@mapNotNull null
                 VolumeScan(
+                    root = dir,
                     label = if (volume.isRemovable) "SD card" else "Internal storage",
                     removable = volume.isRemovable,
                     sizeBytes = dir.totalSpace,
@@ -48,7 +50,7 @@ object Storage {
             }
         if (volumes.isEmpty()) {
             val dir = Environment.getExternalStorageDirectory()
-            return VolumeScan("Internal storage", false, dir.totalSpace, CardScanner.scan(dir, catalog))
+            return VolumeScan(dir, "Internal storage", false, dir.totalSpace, CardScanner.scan(dir, catalog))
         }
         return volumes.sortedWith(
             compareByDescending<VolumeScan> { it.card.romsRoot != null }
@@ -72,6 +74,17 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .getStringSet(KEY_SELECTED, null)
             ?.toSet()
+
+    /** Remembers which Android package an emulator turned out to be, once Loadout has seen its APK. */
+    fun loadPackageId(context: Context, emulatorName: String): String? =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("pkg:$emulatorName", null)
+
+    fun savePackageId(context: Context, emulatorName: String, packageId: String) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putString("pkg:$emulatorName", packageId)
+            .apply()
+    }
 
     fun saveSelection(context: Context, selected: Set<String>) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE)

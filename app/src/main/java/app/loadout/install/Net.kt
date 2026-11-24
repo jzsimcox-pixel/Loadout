@@ -22,6 +22,7 @@ object Net {
             when (code) {
                 403, 429 -> "GitHub is limiting requests right now. Try again in a while."
                 404 -> "The download was not found."
+                451 -> "GitHub has blocked this project's downloads (error 451), so Loadout can't fetch it from there."
                 else -> "The server answered with error $code."
             },
         )

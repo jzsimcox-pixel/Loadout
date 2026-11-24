@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "systems": [
     {
       "id": "nes",
@@ -783,20 +783,10 @@
       "emulator": {
         "name": "Eden",
         "source": {
-          "type": "github",
-          "repo": "eden-emulator/Releases",
-          "assets": [
-            {
-              "match": "standard"
-            },
-            {
-              "match": "arm64|aarch64"
-            },
-            {
-              "match": "\\.apk$"
-            }
-          ]
-        }
+          "type": "page",
+          "url": "https://git.eden-emu.dev/eden-emu/eden/releases"
+        },
+        "updates": "self"
       },
       "alternates": [
         {

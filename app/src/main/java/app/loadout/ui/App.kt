@@ -8,11 +8,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import app.loadout.data.Catalog
+import app.loadout.data.Emulator
+import app.loadout.data.SystemRecipe
 import app.loadout.device.DeviceDetector
 import app.loadout.install.InstallManager
 import app.loadout.install.InstallState
@@ -53,6 +56,13 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
                 selected = result.card.systems.filterValues { it.games > 0 }.keys.toSet()
             }
         }
+    }
+
+    val choices = remember { mutableStateMapOf<String, String>() }
+
+    fun chosenEmulator(recipe: SystemRecipe): Emulator {
+        val name = choices[recipe.id] ?: Prefs.loadEmulatorChoice(context, recipe.id)
+        return (listOf(recipe.emulator) + recipe.alternates).firstOrNull { it.name == name } ?: recipe.emulator
     }
 
     fun toggle(id: String) {
@@ -106,16 +116,23 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
             if (recipe == null) {
                 screen = Screen.Systems
             } else {
-                LaunchedEffect(recipe.id, resumeCount) {
-                    InstallManager.refresh(context, recipe.emulator)
+                val emulator = chosenEmulator(recipe)
+                LaunchedEffect(recipe.id, emulator.name, resumeCount) {
+                    InstallManager.refresh(context, emulator)
                 }
                 DetailScreen(
                     recipe = recipe,
                     scan = volume?.card,
                     device = device,
                     on = recipe.id in chosen,
-                    installState = InstallManager.states[recipe.emulator.name] ?: InstallState.Idle,
-                    onInstall = { InstallManager.install(context, recipe.emulator) },
+                    chosen = emulator,
+                    onChoose = { picked ->
+                        choices[recipe.id] = picked.name
+                        Prefs.saveEmulatorChoice(context, recipe.id, picked.name)
+                    },
+                    installState = InstallManager.states[emulator.name] ?: InstallState.Idle,
+                    notice = InstallManager.notices[emulator.name],
+                    onInstall = { InstallManager.install(context, emulator) },
                     onAllowInstalls = {
                         try {
                             context.startActivity(InstallManager.permissionIntent(context))
@@ -123,7 +140,7 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
                             // No such settings page on this device. Android will ask during the install instead.
                         }
                     },
-                    onCancelInstall = { InstallManager.cancel(context, recipe.emulator) },
+                    onCancelInstall = { InstallManager.cancel(context, emulator) },
                     onOpenPage = { url ->
                         try {
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -139,13 +156,14 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
 
         Screen.Review -> {
             LaunchedEffect(chosen, resumeCount) {
-                catalog.systems.filter { it.id in chosen }.forEach { InstallManager.refresh(context, it.emulator) }
+                catalog.systems.filter { it.id in chosen }.forEach { InstallManager.refresh(context, chosenEmulator(it)) }
             }
             ReviewScreen(
                 catalog = catalog,
                 volume = volume,
                 selected = chosen,
                 installStates = InstallManager.states,
+                emulatorFor = { chosenEmulator(it) },
                 onOpen = { screen = Screen.Detail(it, fromReview = true) },
                 onFoldersCreated = { rescanCount += 1 },
                 onBack = { screen = Screen.Systems },

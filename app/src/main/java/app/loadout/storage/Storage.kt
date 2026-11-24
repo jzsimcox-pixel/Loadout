@@ -86,6 +86,17 @@ object Prefs {
             .apply()
     }
 
+    /** Which emulator the user picked for a system. Null means the recommended one. */
+    fun loadEmulatorChoice(context: Context, systemId: String): String? =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("emu:$systemId", null)
+
+    fun saveEmulatorChoice(context: Context, systemId: String, emulatorName: String) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putString("emu:$systemId", emulatorName)
+            .apply()
+    }
+
     fun saveSelection(context: Context, selected: Set<String>) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit()

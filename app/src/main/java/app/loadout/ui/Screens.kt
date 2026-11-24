@@ -346,7 +346,10 @@ fun DetailScreen(
     scan: CardScan?,
     device: DeviceInfo,
     on: Boolean,
+    chosen: Emulator,
+    onChoose: (Emulator) -> Unit,
     installState: InstallState,
+    notice: String?,
     onInstall: () -> Unit,
     onAllowInstalls: () -> Unit,
     onCancelInstall: () -> Unit,
@@ -360,7 +363,7 @@ fun DetailScreen(
     LaunchedEffect(Unit) { requestFocusSafely(primaryFocus) }
     // An emulator that another source keeps updated gets no install button: Loadout leaves it alone.
     val managedElsewhere = installState is InstallState.Installed && installState.managedBy != null
-    val source = recipe.emulator.source
+    val source = chosen.source
     val showInstallButton = source?.downloadable == true && !managedElsewhere
     val showPageButton = source?.type == "page" && installState !is InstallState.Installed && !showInstallButton
 
@@ -403,9 +406,9 @@ fun DetailScreen(
                 StatusLine(
                     installState is InstallState.Installed,
                     if (installState is InstallState.Installed) {
-                        "${AppMatcher.baseName(recipe.emulator.name)} installed"
+                        "${AppMatcher.baseName(chosen.name)} installed"
                     } else {
-                        "${AppMatcher.baseName(recipe.emulator.name)} not found"
+                        "${AppMatcher.baseName(chosen.name)} not found"
                     },
                 )
                 if (recipe.dualScreen) {
@@ -423,15 +426,27 @@ fun DetailScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Label("EMULATOR", size = 11.sp, color = Palette.Muted, weight = FontWeight.SemiBold)
-                EmulatorRow(recipe.emulator.name, "Recommended", highlighted = true)
-                for (alternate in recipe.alternates) {
-                    EmulatorRow(alternate.name, "Alternate", highlighted = false)
+                for (option in listOf(recipe.emulator) + recipe.alternates) {
+                    val inUse = option.name == chosen.name
+                    val kind = if (option.name == recipe.emulator.name) "Recommended" else "Alternate"
+                    EmulatorRow(
+                        name = option.name,
+                        tag = if (inUse) "$kind · In use" else kind,
+                        highlighted = inUse,
+                        onClick = { onChoose(option) },
+                    )
+                }
+                if (recipe.alternates.isNotEmpty()) {
+                    Label("Move up and press A on an emulator to use it for this system.", size = 12.sp, color = Palette.Muted)
                 }
                 Label(
-                    installStatusText(recipe.emulator, installState),
+                    installStatusText(chosen, installState),
                     size = 13.sp,
                     color = if (installState is InstallState.Failed) Palette.Warn else Palette.Text,
                 )
+                if (notice != null) {
+                    Label("Update check failed: $notice", size = 13.sp, color = Palette.Warn)
+                }
                 Label(supportNote(recipe.support), size = 13.sp, color = Palette.Muted)
                 Spacer(Modifier.height(2.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -442,7 +457,7 @@ fun DetailScreen(
                                 InstallState.Checking, is InstallState.Downloading -> "Working…"
                                 InstallState.WaitingForApproval -> "Try again"
                                 is InstallState.Installed -> "Check for update"
-                                else -> "Install ${recipe.emulator.name}"
+                                else -> "Install ${chosen.name}"
                             },
                             onClick = when {
                                 installState == InstallState.NeedsPermission -> onAllowInstalls
@@ -537,14 +552,22 @@ private fun StatusLine(ok: Boolean, text: String) {
 }
 
 @Composable
-private fun EmulatorRow(name: String, tag: String, highlighted: Boolean) {
+private fun EmulatorRow(name: String, tag: String, highlighted: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(10.dp)
+    val borderColor = when {
+        focused -> Palette.Text
+        highlighted -> Palette.Accent
+        else -> Palette.Border
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused }
             .clip(shape)
             .background(if (highlighted) Palette.SurfaceOn else Palette.Surface)
-            .border(if (highlighted) 2.dp else 1.dp, if (highlighted) Palette.Accent else Palette.Border, shape)
+            .border(if (focused) 3.dp else if (highlighted) 2.dp else 1.dp, borderColor, shape)
+            .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -562,6 +585,7 @@ fun ReviewScreen(
     volume: VolumeScan?,
     selected: Set<String>,
     installStates: Map<String, InstallState>,
+    emulatorFor: (SystemRecipe) -> Emulator,
     onOpen: (String) -> Unit,
     onFoldersCreated: () -> Unit,
     onBack: () -> Unit,
@@ -621,19 +645,21 @@ fun ReviewScreen(
                     )
                 }
                 chosen.forEachIndexed { index, recipe ->
-                    val state = installStates[recipe.emulator.name] ?: InstallState.Idle
+                    val emulator = emulatorFor(recipe)
+                    val source = emulator.source
+                    val state = installStates[emulator.name] ?: InstallState.Idle
                     val emulatorText = when {
                         state is InstallState.Installed -> "installed"
                         state is InstallState.Failed -> "install failed"
                         state.busy -> "working…"
-                        recipe.emulator.source == null -> "no installer yet"
-                        !recipe.emulator.source.downloadable -> "not found"
-                        else -> "not confirmed"
+                        source == null -> "no installer yet"
+                        !source.downloadable -> "not found"
+                        else -> "not found"
                     }
                     val folderText = if (scan?.folderFor(recipe.id) != null) "folder found" else "folder missing"
                     SetupRow(
                         name = "${recipe.code} · ${recipe.name}",
-                        value = "${recipe.emulator.name} · $emulatorText · $folderText",
+                        value = "${AppMatcher.baseName(emulator.name)} · $emulatorText · $folderText",
                         onClick = { onOpen(recipe.id) },
                         modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
                     )

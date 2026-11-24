@@ -55,6 +55,9 @@ object InstallManager {
     /** Current state per emulator name. Read by the screens. */
     val states = mutableStateMapOf<String, InstallState>()
 
+    /** A problem to show beside an emulator that is still installed, such as a failed update check. */
+    val notices = mutableStateMapOf<String, String>()
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val main = Handler(Looper.getMainLooper())
     private val sessions = HashMap<String, Int>()
@@ -161,6 +164,7 @@ object InstallManager {
             states[emulator.name] = InstallState.NeedsPermission
             return
         }
+        notices.remove(emulator.name)
         states[emulator.name] = InstallState.Checking
         scope.launch {
             try {
@@ -204,7 +208,19 @@ object InstallManager {
                 set(emulator.name, InstallState.WaitingForApproval)
                 commit(app, file, emulator.name, packageId)
             } catch (error: Exception) {
-                set(emulator.name, InstallState.Failed(error.message ?: "Something went wrong."))
+                val message = error.message ?: "Something went wrong."
+                val stillInstalled = try {
+                    findInstalled(app, emulator)
+                } catch (_: Exception) {
+                    null
+                }
+                if (stillInstalled != null) {
+                    // The emulator is on the device; only the update check failed.
+                    main.post { notices[emulator.name] = message }
+                    set(emulator.name, installedState(stillInstalled, emulator))
+                } else {
+                    set(emulator.name, InstallState.Failed(message))
+                }
             }
         }
     }

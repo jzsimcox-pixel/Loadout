@@ -1,9 +1,14 @@
 package app.loadout.ui
 
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,6 +24,11 @@ import androidx.compose.ui.platform.LocalContext
 import app.loadout.data.Catalog
 import app.loadout.data.Emulator
 import app.loadout.data.SystemRecipe
+import app.loadout.debug.DebugLink
+import app.loadout.debug.LinkChecks
+import app.loadout.debug.LinkResult
+import app.loadout.debug.LinkStep
+import app.loadout.debug.PairingService
 import app.loadout.device.DeviceDetector
 import app.loadout.install.EsdeHookup
 import app.loadout.install.EsdeView
@@ -45,6 +55,7 @@ private sealed interface Screen {
     data object Theme : Screen
     data object Esde : Screen
     data object Settings : Screen
+    data object Link : Screen
 }
 
 @Composable
@@ -93,6 +104,9 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
     var settingsView by remember { mutableStateOf<SettingsView>(SettingsView.Loading) }
     var settingsMessage by remember { mutableStateOf<String?>(null) }
     var settingsReload by remember { mutableIntStateOf(0) }
+    var linkChecks by remember { mutableStateOf<LinkChecks?>(null) }
+    var linkBusy by remember { mutableStateOf(false) }
+    var linkReload by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(hasAccess, rescanCount) {
@@ -139,11 +153,60 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
         Prefs.saveSelection(context, next)
     }
 
+    fun openSettingsPage(action: String) {
+        try {
+            context.startActivity(Intent(action))
+        } catch (_: ActivityNotFoundException) {
+            try {
+                context.startActivity(Intent(Settings.ACTION_SETTINGS))
+            } catch (_: ActivityNotFoundException) {
+                // No settings app to open.
+            }
+        }
+    }
+
+    fun openNotificationSettings() {
+        try {
+            context.startActivity(
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+            )
+        } catch (_: ActivityNotFoundException) {
+            openSettingsPage(Settings.ACTION_SETTINGS)
+        }
+    }
+
+    val notificationPrompt = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        // Android stops asking after a refusal, so fall back to the settings page.
+        if (!granted) openNotificationSettings()
+        linkReload += 1
+    }
+
+    /** Leaving Emulator settings closes the wireless debugging connection again. */
+    fun leaveSettings() {
+        scope.launch(Dispatchers.IO) { DebugLink.finish(context) }
+        screen = Screen.Review
+    }
+
+    fun backToSettings() {
+        settingsView = SettingsView.Loading
+        settingsMessage = null
+        settingsReload += 1
+        screen = Screen.Settings
+    }
+
     BackHandler(enabled = screen != Screen.Detect) {
         val current = screen
+        if (current == Screen.Settings) {
+            leaveSettings()
+            return@BackHandler
+        }
+        if (current == Screen.Link) {
+            backToSettings()
+            return@BackHandler
+        }
         screen = when {
             current is Screen.Detail && current.fromReview -> Screen.Review
-            current == Screen.Esde || current == Screen.Settings -> Screen.Review
+            current == Screen.Esde -> Screen.Review
             current is Screen.Detail || current == Screen.Review -> Screen.Systems
             else -> Screen.Detect
         }
@@ -337,7 +400,77 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
                         settingsReload += 1
                     }
                 },
-                onBack = { screen = Screen.Review },
+                onSetUpLink = {
+                    linkChecks = null
+                    linkReload += 1
+                    screen = Screen.Link
+                },
+                onBack = { leaveSettings() },
+            )
+        }
+
+        Screen.Link -> {
+            val pairState = DebugLink.pairing.value
+            LaunchedEffect(linkReload, resumeCount, pairState) {
+                linkBusy = true
+                linkChecks = withContext(Dispatchers.IO) {
+                    var checks = DebugLink.checks(context)
+                    val canConnect = checks.developer && checks.wifi && checks.wireless != false &&
+                        checks.paired && !checks.connected
+                    if (canConnect) {
+                        val error = when (val result = DebugLink.connect(context)) {
+                            LinkResult.Ready -> null
+                            LinkResult.NeedsPairing -> {
+                                // Android has forgotten Loadout, so the guide goes back to pairing.
+                                DebugLink.markPaired(context, false)
+                                null
+                            }
+                            LinkResult.NotFound ->
+                                "Loadout couldn't find wireless debugging. Check it is switched on in Developer options, then try again."
+                            is LinkResult.Failed -> "That didn't connect: ${result.message}"
+                        }
+                        checks = DebugLink.checks(context, error)
+                    }
+                    checks
+                }
+                linkBusy = false
+            }
+            LinkScreen(
+                checks = linkChecks,
+                pairState = pairState,
+                busy = linkBusy,
+                canToggle = DebugLink.canToggleWireless(context),
+                onAction = { step ->
+                    when (step) {
+                        LinkStep.DEVELOPER -> openSettingsPage(Settings.ACTION_DEVICE_INFO_SETTINGS)
+                        LinkStep.WIFI -> openSettingsPage(Settings.ACTION_WIFI_SETTINGS)
+                        LinkStep.WIRELESS -> {
+                            if (DebugLink.canToggleWireless(context)) {
+                                DebugLink.setWirelessDebugging(context, true)
+                                linkReload += 1
+                            } else {
+                                DebugLink.ownsWireless = true
+                                openSettingsPage(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+                            }
+                        }
+                        LinkStep.NOTIFICATIONS -> {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notificationPrompt.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                openNotificationSettings()
+                            }
+                        }
+                        LinkStep.PAIR -> {
+                            DebugLink.ownsWireless = true
+                            PairingService.start(context)
+                            openSettingsPage(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+                        }
+                        LinkStep.CONNECT -> linkReload += 1
+                        LinkStep.DONE -> backToSettings()
+                    }
+                },
+                onRefresh = { linkReload += 1 },
+                onBack = { backToSettings() },
             )
         }
     }

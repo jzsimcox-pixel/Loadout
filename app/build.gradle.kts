@@ -56,6 +56,19 @@ android {
     buildFeatures {
         compose = true
     }
+    packaging {
+        resources {
+            // The crypto libraries each ship their own copy of these.
+            excludes += setOf(
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
+                "META-INF/BCKEY.DSA",
+                "META-INF/BCKEY.SF",
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+            )
+        }
+    }
 }
 
 dependencies {
@@ -67,6 +80,13 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
     implementation("com.caverock:androidsvg-aar:1.4")
+
+    // Wireless debugging from inside the app: pairing, connecting and running commands.
+    implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
+    // Builds the certificate the pairing needs.
+    implementation("com.github.MuntashirAkon:sun-security-android:1.1")
+    // TLS 1.3 without relying on hidden Android APIs.
+    implementation("org.conscrypt:conscrypt-android:2.5.3")
 
     testImplementation("junit:junit:4.13.2")
 }

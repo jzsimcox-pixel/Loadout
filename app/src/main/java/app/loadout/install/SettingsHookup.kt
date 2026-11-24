@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.Environment
 import app.loadout.data.Catalog
 import app.loadout.data.Templates
+import app.loadout.debug.DebugLink
+import app.loadout.debug.LinkResult
 import app.loadout.device.DeviceInfo
 import app.loadout.storage.SettingsPlanner
 import app.loadout.storage.SettingsRow
@@ -14,8 +16,11 @@ sealed interface SettingsView {
     data object Loading : SettingsView
     data object NoTemplates : SettingsView
 
-    /** tunedOn: the device the settings came from, when it is not this one. */
-    data class Ready(val rows: List<SettingsRow>, val tunedOn: String?) : SettingsView
+    /**
+     * tunedOn: the device the settings came from, when it is not this one.
+     * linked: wireless debugging is connected, so closed folders can be reached.
+     */
+    data class Ready(val rows: List<SettingsRow>, val tunedOn: String?, val linked: Boolean) : SettingsView
 }
 
 /** Compares Loadout's tuned settings with each installed emulator. Runs off the main thread. */
@@ -36,6 +41,7 @@ object SettingsHookup {
             return SettingsView.NoTemplates
         }
         val internal = Environment.getExternalStorageDirectory().path
+        val closedDoor = if (reconnect(context)) DebugLink.door(context) else null
         val emulators = catalog.systems.flatMap { listOf(it.emulator) + it.alternates }
 
         val rows = manifest.emulators.map { (name, templates) ->
@@ -51,13 +57,24 @@ object SettingsHookup {
                     "RETROARCH_DIR" to File(internal, "RetroArch").path,
                     "RETROARCH_DATA" to "/data/user/0/${installed.packageId}",
                 )
-                SettingsPlanner.plan(name, templates, values) { asset(context, it) }
+                SettingsPlanner.plan(name, templates, values, closedDoor) { asset(context, it) }
             }
         }
         val tunedOn = manifest.profileName.takeIf { it.isNotBlank() && manifest.profile != device.profileId }
-        return SettingsView.Ready(rows, tunedOn)
+        return SettingsView.Ready(rows, tunedOn, closedDoor != null)
     }
 
-    /** Writes the chosen rows. Returns the files that could not be written. */
-    fun apply(rows: List<SettingsRow>): List<File> = SettingsPlanner.apply(rows)
+    /**
+     * True when wireless debugging is connected. A device that was paired before is
+     * reconnected quietly; one that never was is left for the setup guide.
+     */
+    private fun reconnect(context: Context): Boolean {
+        if (DebugLink.isConnected(context)) return true
+        if (!DebugLink.wasPaired(context) || !DebugLink.onWifi(context)) return false
+        val reachable = DebugLink.wirelessDebuggingOn(context) != false || DebugLink.canToggleWireless(context)
+        return reachable && DebugLink.connect(context, 6000) == LinkResult.Ready
+    }
+
+    /** Writes the chosen rows. Returns the paths that could not be written. */
+    fun apply(rows: List<SettingsRow>): List<String> = SettingsPlanner.apply(rows)
 }

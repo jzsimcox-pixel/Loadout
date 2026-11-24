@@ -2,6 +2,7 @@ package app.loadout
 
 import app.loadout.data.EmulatorTemplates
 import app.loadout.data.TemplateFile
+import app.loadout.storage.FileDoor
 import app.loadout.storage.SettingsPlanner
 import app.loadout.storage.SettingsStatus
 import org.junit.Assert.assertEquals
@@ -25,8 +26,22 @@ class SettingsPlannerTest {
 
     private fun values() = mapOf("INTERNAL" to temp.root.path, "PKG" to "com.example.emu")
 
-    private fun plan(vararg files: TemplateFile) =
-        SettingsPlanner.plan("Test", EmulatorTemplates(files.toList()), values()) { templates[it] }
+    private fun plan(vararg files: TemplateFile, closedDoor: FileDoor? = null) =
+        SettingsPlanner.plan("Test", EmulatorTemplates(files.toList()), values(), closedDoor) { templates[it] }
+
+    /** Stands in for the wireless debugging connection: folders and files held in memory. */
+    private class FakeDoor(val dirs: Set<String>, val files: MutableMap<String, String>) : FileDoor {
+        override val createsFiles = false
+        val backups = ArrayList<String>()
+        override fun isDir(path: String) = path in dirs
+        override fun read(path: String) = files[path]
+        override fun write(path: String, text: String) {
+            backups += path
+            files[path] = text
+        }
+    }
+
+    private fun closedRoot() = "${temp.root.path}/Android/data/com.example.emu/files"
 
     private fun file(template: String, root: String, path: String, mode: String, optional: String = "") =
         TemplateFile(template, root, path, mode, optional)
@@ -85,7 +100,7 @@ class SettingsPlannerTest {
         val row = plan(file("ra.patch", "{{INTERNAL}}/RetroArch", "retroarch.cfg", "merge-cfg"))
         cfg.writeText("video_driver = \"gl\"\nadded_by_the_emulator = \"1\"\n")
 
-        assertEquals(listOf(cfg), SettingsPlanner.apply(listOf(row)))
+        assertEquals(listOf(cfg.path), SettingsPlanner.apply(listOf(row)))
         assertEquals("video_driver = \"gl\"\nadded_by_the_emulator = \"1\"\n", cfg.readText())
         assertFalse(File(root, "retroarch.cfg.loadout-backup").exists())
     }
@@ -117,5 +132,61 @@ class SettingsPlannerTest {
         assertEquals(SettingsStatus.READY, row.status)
         assertTrue(SettingsPlanner.apply(listOf(row)).isEmpty())
         assertEquals("video_driver = \"vulkan\"\n", File(temp.root, "RetroArch/config/Core/Core.opt").readText())
+    }
+
+    @Test
+    fun aClosedFolderIsReadAndWrittenThroughTheConnection() {
+        val path = "${closedRoot()}/retroarch.cfg"
+        val door = FakeDoor(setOf(closedRoot()), mutableMapOf(path to "video_driver = \"gl\"\n"))
+        val row = plan(
+            file("ra.patch", "{{INTERNAL}}/Android/data/{{PKG}}/files", "retroarch.cfg", "merge-cfg"),
+            closedDoor = door,
+        )
+        assertEquals(SettingsStatus.READY, row.status)
+        assertEquals(0, row.lockedFiles)
+        assertEquals("video_driver = \"gl\"\n", door.files[path])
+
+        assertTrue(SettingsPlanner.apply(listOf(row)).isEmpty())
+        assertEquals("video_driver = \"vulkan\"\n", door.files[path])
+        assertEquals(listOf(path), door.backups)
+    }
+
+    @Test
+    fun throughTheConnectionOnlyFilesThatExistAreChanged() {
+        val door = FakeDoor(setOf(closedRoot()), mutableMapOf())
+        val row = plan(
+            file("ra.patch", "{{INTERNAL}}/Android/data/{{PKG}}/files", "retroarch.cfg", "merge-cfg"),
+            closedDoor = door,
+        )
+        assertEquals(SettingsStatus.NO_FOLDER, row.status)
+        assertEquals(1, row.notCreated)
+        assertTrue(row.files.isEmpty())
+        assertTrue(door.files.isEmpty())
+    }
+
+    @Test
+    fun aClosedFolderTheEmulatorHasNotMadeIsNotLocked() {
+        val row = plan(
+            file("ra.patch", "{{INTERNAL}}/Android/data/{{PKG}}/files", "retroarch.cfg", "merge-cfg"),
+            closedDoor = FakeDoor(emptySet(), mutableMapOf()),
+        )
+        assertEquals(SettingsStatus.NO_FOLDER, row.status)
+        assertEquals(0, row.lockedFiles)
+    }
+
+    @Test
+    fun aConnectionThatFailsLeavesTheFileAlone() {
+        val broken = object : FileDoor {
+            override val createsFiles = false
+            override fun isDir(path: String) = true
+            override fun read(path: String): String? = throw java.io.IOException("cut short")
+            override fun write(path: String, text: String) = throw java.io.IOException("should not be called")
+        }
+        val row = plan(
+            file("ra.patch", "{{INTERNAL}}/Android/data/{{PKG}}/files", "retroarch.cfg", "merge-cfg"),
+            closedDoor = broken,
+        )
+        assertEquals(1, row.unreadable)
+        assertTrue(row.files.isEmpty())
     }
 }

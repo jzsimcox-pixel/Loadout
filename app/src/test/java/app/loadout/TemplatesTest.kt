@@ -68,15 +68,15 @@ class TemplatesTest {
 
         for ((name, emulator) in manifest.emulators) {
             val read = { path: String -> File(dir, path).takeIf { it.isFile }?.readText() }
-            val first = SettingsPlanner.plan(name, emulator, values, read)
+            val first = SettingsPlanner.plan(name, emulator, values, readTemplate = read)
             assertEquals(name, SettingsStatus.READY, first.status)
             assertEquals(name, 0, first.unreadable)
             assertTrue(name, SettingsPlanner.apply(listOf(first)).isEmpty())
             for (file in first.files) {
-                assertFalse(file.target.name, "{{" in file.target.readText())
+                assertFalse(file.path, "{{" in File(file.path).readText())
             }
 
-            val second = SettingsPlanner.plan(name, emulator, values, read)
+            val second = SettingsPlanner.plan(name, emulator, values, readTemplate = read)
             assertEquals(name, SettingsStatus.MATCHES, second.status)
             assertTrue(name, second.files.isEmpty())
         }

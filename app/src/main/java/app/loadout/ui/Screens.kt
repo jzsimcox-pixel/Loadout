@@ -52,6 +52,10 @@ import app.loadout.data.Catalog
 import app.loadout.data.Emulator
 import app.loadout.data.SystemRecipe
 import app.loadout.data.ThemeOption
+import app.loadout.debug.LinkChecks
+import app.loadout.debug.LinkStep
+import app.loadout.debug.LinkSteps
+import app.loadout.debug.PairState
 import app.loadout.device.DeviceInfo
 import app.loadout.install.AppMatcher
 import app.loadout.install.EsdeView
@@ -961,6 +965,7 @@ fun SettingsScreen(
     view: SettingsView,
     message: String?,
     onApply: (List<SettingsRow>) -> Unit,
+    onSetUpLink: () -> Unit,
     onBack: () -> Unit,
 ) {
     val ready = view as? SettingsView.Ready
@@ -968,6 +973,8 @@ fun SettingsScreen(
     var skipped by remember(rows) { mutableStateOf(emptySet<String>()) }
     val toApply = rows.filter { it.status == SettingsStatus.READY && it.emulator !in skipped }
     val changeCount = toApply.sumOf { it.changes.size }
+    // Offer the wireless debugging guide when something sits in a folder Android keeps closed.
+    val needsLink = ready != null && !ready.linked && rows.any { it.status == SettingsStatus.LOCKED || it.lockedFiles > 0 }
     val firstFocus = remember { FocusRequester() }
     LaunchedEffect(view) { requestFocusSafely(firstFocus) }
 
@@ -985,6 +992,7 @@ fun SettingsScreen(
                 SettingsView.NoTemplates -> "Loadout couldn't read its settings templates, so it won't change anything."
                 is SettingsView.Ready ->
                     (if (view.tunedOn != null) "These settings were tuned on the ${view.tunedOn}; controls may differ here. " else "") +
+                        (if (view.linked) "Wireless debugging is connected. " else "") +
                         "Close the emulators first, or they may undo these changes. Each file is backed up before it is edited. Press A on a row to include or skip it."
             },
             size = 13.sp,
@@ -1002,12 +1010,13 @@ fun SettingsScreen(
         ) {
             rows.forEachIndexed { index, row ->
                 val included = row.emulator !in skipped
-                val locked = if (row.lockedFiles > 0) " · ${plural(row.lockedFiles, "file needs", "files need")} Shizuku" else ""
-                val unread = if (row.unreadable > 0) " · ${plural(row.unreadable, "file", "files")} left alone, unreadable" else ""
+                val locked = if (row.lockedFiles > 0) " · ${plural(row.lockedFiles, "file needs", "files need")} wireless debugging" else ""
+                val unread = (if (row.unreadable > 0) " · ${plural(row.unreadable, "file", "files")} left alone, unreadable" else "") +
+                    (if (row.notCreated > 0) " · ${plural(row.notCreated, "file", "files")} not created by the emulator yet" else "")
                 val text = when (row.status) {
                     SettingsStatus.NOT_INSTALLED -> "not installed"
                     SettingsStatus.NO_FOLDER -> "open it once so it creates its settings, then come back$unread"
-                    SettingsStatus.LOCKED -> "Android keeps this folder closed · needs Shizuku"
+                    SettingsStatus.LOCKED -> "Android keeps this folder closed · needs wireless debugging"
                     SettingsStatus.MATCHES -> "already matches$locked$unread"
                     SettingsStatus.READY ->
                         if (included) "${plural(row.changes.size, "setting", "settings")} will change$locked$unread"
@@ -1049,6 +1058,9 @@ fun SettingsScreen(
             KeyHint("A", "Include or skip")
             KeyHint("B", "Back")
             Spacer(Modifier.weight(1f))
+            if (needsLink) {
+                ActionButton(text = "Set up wireless debugging", onClick = onSetUpLink, primary = toApply.isEmpty())
+            }
             if (toApply.isNotEmpty()) {
                 ActionButton(
                     text = "Apply ${plural(changeCount, "change", "changes")}",
@@ -1060,6 +1072,154 @@ fun SettingsScreen(
                 text = "Back",
                 onClick = onBack,
                 modifier = if (rows.isEmpty()) Modifier.focusRequester(firstFocus) else Modifier,
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------- Wireless debugging guide
+
+private val linkStepNames = listOf(
+    LinkStep.DEVELOPER to "Developer options",
+    LinkStep.WIFI to "Wi-Fi",
+    LinkStep.WIRELESS to "Wireless debugging",
+    LinkStep.NOTIFICATIONS to "Notifications",
+    LinkStep.PAIR to "Pairing code",
+    LinkStep.CONNECT to "Connect",
+)
+
+private fun linkHint(step: LinkStep, checks: LinkChecks, pairState: PairState, canToggle: Boolean): String = when (step) {
+    LinkStep.DEVELOPER ->
+        "Android hides Wireless debugging until Developer options are on. Press the button, find \"Build number\" and tap it 7 times, then come back here."
+    LinkStep.WIFI -> "Wireless debugging only works on Wi-Fi. Connect to your Wi-Fi, then come back here."
+    LinkStep.WIRELESS ->
+        if (canToggle) {
+            "Loadout can switch Wireless debugging on for you."
+        } else {
+            "Press the button, scroll down to Wireless debugging and switch it on. When Android asks, tick \"Always allow on this network\" and tap Allow. Then come back here."
+        }
+    LinkStep.NOTIFICATIONS ->
+        "Android only shows the pairing code on its own screen, so Loadout asks for it in a notification. It needs permission to show one."
+    LinkStep.PAIR -> when (pairState) {
+        is PairState.Failed -> "Pairing didn't finish: ${pairState.message} Press the button to try again."
+        PairState.Searching, PairState.CodeNeeded, PairState.Pairing ->
+            "Pairing is waiting. Open Wireless debugging in Developer options and tap \"Pair device with pairing code\", then answer Loadout's notification."
+        else ->
+            "Press the button. In Developer options, open Wireless debugging and tap \"Pair device with pairing code\". Android shows a 6-digit code. " +
+                "Swipe down from the top of the screen, tap \"Enter pairing code\" on Loadout's notification and type the code. Leave Android's code screen open while you type."
+    }
+    LinkStep.CONNECT -> checks.error ?: "Connecting…"
+    LinkStep.DONE ->
+        "Connected. Loadout can now reach every emulator's settings." +
+            (if (canToggle) " It will switch Wireless debugging off again when you leave Emulator settings." else " Loadout couldn't get permission to switch Wireless debugging off by itself, so switch it off in Developer options when you are done.")
+}
+
+private fun linkButton(step: LinkStep, canToggle: Boolean): String = when (step) {
+    LinkStep.DEVELOPER -> "Open About"
+    LinkStep.WIFI -> "Open Wi-Fi settings"
+    LinkStep.WIRELESS -> if (canToggle) "Turn it on" else "Open Developer options"
+    LinkStep.NOTIFICATIONS -> "Allow notifications"
+    LinkStep.PAIR -> "Start pairing"
+    LinkStep.CONNECT -> "Try again"
+    LinkStep.DONE -> "Done"
+}
+
+@Composable
+fun LinkScreen(
+    checks: LinkChecks?,
+    pairState: PairState,
+    busy: Boolean,
+    canToggle: Boolean,
+    onAction: (LinkStep) -> Unit,
+    onRefresh: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val step = checks?.let { LinkSteps.next(it) }
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(step) { requestFocusSafely(firstFocus) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Palette.Bg)
+            .padding(ScreenPadding),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        TopBar("Wireless debugging", if (step == LinkStep.DONE) "Connected" else "One-time setup")
+        Label(
+            text = "This lets Loadout reach the settings folders Android keeps closed to other apps. You set it up once per device.",
+            size = 13.sp,
+            color = Palette.Muted,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Palette.Surface)
+                .border(1.dp, Palette.Border, RoundedCornerShape(14.dp))
+                .padding(horizontal = 18.dp, vertical = 8.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            if (checks == null || step == null) {
+                Label("Checking this device…", size = 14.sp, color = Palette.Muted, modifier = Modifier.padding(vertical = 12.dp))
+            } else {
+                val position = linkStepNames.indexOfFirst { it.first == step }.let { if (it < 0) linkStepNames.size else it }
+                linkStepNames.forEachIndexed { index, (_, name) ->
+                    val state = when {
+                        index < position -> "done"
+                        index == position -> if (busy) "checking…" else "do this now"
+                        else -> "later"
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 7.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Label(
+                            "${index + 1}. $name",
+                            size = 14.sp,
+                            weight = if (index == position) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (index > position) Palette.Muted else Palette.Text,
+                        )
+                        Label(
+                            state,
+                            size = 13.sp,
+                            color = if (index == position) Palette.Accent else Palette.Muted,
+                        )
+                    }
+                }
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                        .height(1.dp)
+                        .background(Palette.Border),
+                )
+                Label(linkHint(step, checks, pairState, canToggle), size = 14.sp, modifier = Modifier.padding(vertical = 6.dp))
+            }
+        }
+        BottomBar {
+            KeyHint("A", "Select")
+            KeyHint("B", "Back")
+            Spacer(Modifier.weight(1f))
+            if (step != null && step != LinkStep.DONE) {
+                ActionButton(text = "Check again", onClick = onRefresh)
+            }
+            if (step != null) {
+                ActionButton(
+                    text = linkButton(step, canToggle),
+                    onClick = { if (step == LinkStep.DONE) onBack() else onAction(step) },
+                    primary = true,
+                    modifier = Modifier.focusRequester(firstFocus),
+                )
+            }
+            ActionButton(
+                text = "Back",
+                onClick = onBack,
+                modifier = if (step == null) Modifier.focusRequester(firstFocus) else Modifier,
             )
         }
     }

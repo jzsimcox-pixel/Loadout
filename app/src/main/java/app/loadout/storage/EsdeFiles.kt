@@ -96,8 +96,9 @@ object EsdeSettings {
 
     /** Returns null when the file has no theme entry, in which case nothing should be written. */
     fun withTheme(text: String, folderName: String): String? {
-        if (!theme.containsMatchIn(text)) return null
-        return theme.replaceFirst(text) { it.groupValues[1] + folderName + it.groupValues[3] }
+        val match = theme.find(text) ?: return null
+        val value = match.groups[2] ?: return null
+        return text.substring(0, value.range.first) + folderName + text.substring(value.range.last + 1)
     }
 }
 

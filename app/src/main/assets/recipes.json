@@ -1,5 +1,5 @@
 {
-  "version": 9,
+  "version": 10,
   "systems": [
     {
       "id": "nes",
@@ -1038,11 +1038,6 @@
       "name": "Alekfull-NX",
       "repo": "anthonycaccese/alekfull-nx-es-de",
       "sizeMb": 85
-    },
-    {
-      "name": "Epic Noir Next",
-      "repo": "anthonycaccese/epic-noir-next-es-de",
-      "sizeMb": 46
     }
   ]
 }

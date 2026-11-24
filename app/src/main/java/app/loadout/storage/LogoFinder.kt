@@ -3,6 +3,9 @@ package app.loadout.storage
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import app.loadout.data.Catalog
 import com.caverock.androidsvg.SVG
 import java.io.File
@@ -109,6 +112,12 @@ object LogoIndex {
         return found
     }
 
+    /** Themes keep system logos in folders named like "logos" or "carousel-icons". */
+    private fun isLogoFolder(name: String): Boolean {
+        val lower = name.lowercase()
+        return "logo" in lower || "icon" in lower
+    }
+
     private fun rank(file: File): Int = EXTENSIONS.indexOf(file.extension.lowercase())
 
     private fun walk(dir: File, depth: Int, insideLogoFolder: Boolean = false, visit: (File, Boolean) -> Unit) {
@@ -117,7 +126,7 @@ object LogoIndex {
             if (entry.name.startsWith(".")) continue
             if (entry.isDirectory) {
                 if (depth < MAX_DEPTH) {
-                    walk(entry, depth + 1, insideLogoFolder || "logo" in entry.name.lowercase(), visit)
+                    walk(entry, depth + 1, insideLogoFolder || isLogoFolder(entry.name), visit)
                 }
             } else if (entry.isFile) {
                 visit(entry, insideLogoFolder)
@@ -130,11 +139,50 @@ object LogoRenderer {
     /** Draws a logo file into a bitmap no larger than the given box, keeping its shape. */
     fun render(file: File, maxWidth: Int, maxHeight: Int): Bitmap? =
         try {
-            if (file.extension.equals("svg", ignoreCase = true)) renderSvg(file, maxWidth, maxHeight)
-            else renderRaster(file, maxWidth, maxHeight)
+            val bitmap = if (file.extension.equals("svg", ignoreCase = true)) {
+                renderSvg(file, maxWidth, maxHeight)
+            } else {
+                renderRaster(file, maxWidth, maxHeight)
+            }
+            bitmap?.let { lightenIfDark(it) }
         } catch (_: Throwable) {
             null
         }
+
+    /**
+     * Many theme logos are dark shapes on a clear background, meant for light screens.
+     * Those would vanish on Loadout's dark tiles, so they are redrawn in a light colour.
+     * Full-colour pictures and logos that are already light are left as they are.
+     */
+    private fun lightenIfDark(bitmap: Bitmap): Bitmap {
+        val width = bitmap.width
+        val height = bitmap.height
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+        var visible = 0
+        var clear = 0
+        var brightness = 0L
+        for (i in pixels.indices step 5) {
+            val pixel = pixels[i]
+            if ((pixel ushr 24) < 40) {
+                clear++
+            } else {
+                visible++
+                val red = (pixel shr 16) and 0xFF
+                val green = (pixel shr 8) and 0xFF
+                val blue = pixel and 0xFF
+                brightness += (red * 299 + green * 587 + blue * 114) / 1000
+            }
+        }
+        val isShapeOnClearBackground = clear * 5 > (visible + clear)
+        if (visible == 0 || !isShapeOnClearBackground || brightness / visible > 70) return bitmap
+        val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val paint = Paint().apply {
+            colorFilter = PorterDuffColorFilter(0xFFF2F4F5.toInt(), PorterDuff.Mode.SRC_IN)
+        }
+        Canvas(result).drawBitmap(bitmap, 0f, 0f, paint)
+        return result
+    }
 
     private fun renderSvg(file: File, maxWidth: Int, maxHeight: Int): Bitmap? {
         val svg = file.inputStream().use { SVG.getFromInputStream(it) }

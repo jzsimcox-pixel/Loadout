@@ -76,4 +76,19 @@ class LogoIndexTest {
         val found = LogoIndex.find(LogoIndex.searchRoots(listOf(temp.root)), catalog)
         assertEquals("n64.svg", found["n64"]?.name)
     }
+
+    @Test
+    fun findsLogosInAnIconsFolderInsideATheme() {
+        file("ES-DE/themes/alekfull-nx-es-de/_inc/systems/carousel-icons/nes.webp")
+        file("ES-DE/themes/alekfull-nx-es-de/_inc/systems/backgrounds/nes.jpg")
+        val found = LogoIndex.find(LogoIndex.searchRoots(listOf(temp.root)), catalog)
+        assertEquals("nes.webp", found["nes"]?.name)
+    }
+
+    @Test
+    fun controllerPicturesAreNotMistakenForLogos() {
+        file("ES-DE/themes/epic-noir-next-es-de/_inc/systems/controllers/nes.png")
+        val found = LogoIndex.find(LogoIndex.searchRoots(listOf(temp.root)), catalog)
+        assertNull(found["nes"])
+    }
 }

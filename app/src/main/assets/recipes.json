@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 8,
   "systems": [
     {
       "id": "nes",
@@ -783,8 +783,21 @@
       "emulator": {
         "name": "Eden",
         "source": {
-          "type": "page",
-          "url": "https://git.eden-emu.dev/eden-emu/eden/releases"
+          "type": "gitea",
+          "host": "git.eden-emu.dev",
+          "repo": "eden-emu/eden",
+          "url": "https://eden-emu.dev/downloads/",
+          "assets": [
+            {
+              "match": "standard"
+            },
+            {
+              "match": "arm64|aarch64"
+            },
+            {
+              "match": "^(?!.*(legacy|spoof|x86|chromeos)).*\\.apk$"
+            }
+          ]
         },
         "updates": "self"
       },

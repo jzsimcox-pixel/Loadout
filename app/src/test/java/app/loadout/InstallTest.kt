@@ -142,3 +142,33 @@ class BracketNameTest {
         assertEquals(false, app.loadout.install.AppMatcher.matches(retroarch, "RetroArch Companion"))
     }
 }
+
+class SourceTest {
+    private val catalog = Recipes.parse(File("src/main/assets/recipes.json").readText())
+
+    @Test
+    fun giteaSourcesUseTheirOwnServer() {
+        val eden = catalog.byId("switch")!!.emulator
+        val source = eden.source!!
+        assertTrue(source.downloadable)
+        assertEquals(
+            "https://git.eden-emu.dev/api/v1/repos/eden-emu/eden/releases/latest",
+            GitHubReleases.latestUrl(source),
+        )
+    }
+
+    @Test
+    fun edenRulesPreferTheStandardBuild() {
+        val rules = catalog.byId("switch")!!.emulator.source!!.assets
+        fun pick(vararg names: String) =
+            GitHubReleases.pickAsset(names.map { ReleaseAsset(it, "https://example.invalid/$it") }, rules, 33)?.name
+        assertEquals("Eden-Android-v1-standard.apk", pick("Eden-Android-v1-legacy.apk", "Eden-Android-v1-standard.apk"))
+        assertEquals("eden.apk", pick("eden-legacy.apk", "eden-genshin-spoof.apk", "eden.apk"))
+    }
+
+    @Test
+    fun githubSourcesUseGithub() {
+        val source = catalog.byId("ps2")!!.emulator.source!!
+        assertEquals("https://api.github.com/repos/ARMSX2/ARMSX2/releases/latest", GitHubReleases.latestUrl(source))
+    }
+}

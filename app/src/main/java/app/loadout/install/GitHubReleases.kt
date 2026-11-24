@@ -1,6 +1,7 @@
 package app.loadout.install
 
 import app.loadout.data.AssetRule
+import app.loadout.data.Source
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -22,7 +23,13 @@ data class Release(
 object GitHubReleases {
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun latestUrl(repo: String): String = "https://api.github.com/repos/$repo/releases/latest"
+    /** Address of the "latest release" description. GitHub and Gitea answer in the same shape. */
+    fun latestUrl(source: Source): String =
+        if (source.type == "gitea") {
+            "https://${source.host}/api/v1/repos/${source.repo}/releases/latest"
+        } else {
+            "https://api.github.com/repos/${source.repo}/releases/latest"
+        }
 
     fun parse(text: String): Release = json.decodeFromString(Release.serializer(), text)
 

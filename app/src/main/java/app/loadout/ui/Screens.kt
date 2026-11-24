@@ -365,7 +365,9 @@ fun DetailScreen(
     val managedElsewhere = installState is InstallState.Installed && installState.managedBy != null
     val source = chosen.source
     val showInstallButton = source?.downloadable == true && !managedElsewhere
-    val showPageButton = source?.type == "page" && installState !is InstallState.Installed && !showInstallButton
+    // The download page is offered when Loadout cannot download the emulator, or just failed to.
+    val showPageButton = source != null && source.url.isNotBlank() && installState !is InstallState.Installed &&
+        (!source.downloadable || installState is InstallState.Failed)
 
     Column(
         modifier = Modifier
@@ -475,8 +477,8 @@ fun DetailScreen(
                         ActionButton(
                             text = "Open download page",
                             onClick = { onOpenPage(source?.url.orEmpty()) },
-                            primary = true,
-                            modifier = Modifier.focusRequester(primaryFocus),
+                            primary = !showInstallButton,
+                            modifier = if (showInstallButton) Modifier else Modifier.focusRequester(primaryFocus),
                         )
                     }
                     ActionButton(

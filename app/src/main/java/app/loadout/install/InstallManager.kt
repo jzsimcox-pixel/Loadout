@@ -176,7 +176,7 @@ object InstallManager {
                     return@launch
                 }
 
-                val release = GitHubReleases.parse(Net.getText(GitHubReleases.latestUrl(source.repo)))
+                val release = GitHubReleases.parse(Net.getText(GitHubReleases.latestUrl(source)))
                 val asset = GitHubReleases.pickAsset(release.assets, source.assets, Build.VERSION.SDK_INT)
                     ?: throw IllegalStateException("The latest release has no download that fits this device.")
 

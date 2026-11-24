@@ -46,6 +46,10 @@ class CatalogTest {
             val source = emulator.source ?: continue
             when (source.type) {
                 "github" -> assertTrue(emulator.name, Regex("[\\w.-]+/[\\w.-]+").matches(source.repo))
+                "gitea" -> {
+                    assertTrue(emulator.name, source.host.isNotBlank())
+                    assertTrue(emulator.name, Regex("[\\w.-]+/[\\w.-]+").matches(source.repo))
+                }
                 "page" -> assertTrue(emulator.name, source.url.startsWith("https://"))
                 else -> throw AssertionError("Unknown source type for ${emulator.name}: ${source.type}")
             }

@@ -16,17 +16,21 @@ data class AssetRule(
 
 /**
  * Where an emulator comes from.
- * type "github": Loadout downloads the APK from the latest release of repo.
+ * type "github": Loadout downloads the APK from the latest release of repo on GitHub.
+ * type "gitea": the same, from a Gitea or Forgejo server at host.
  * type "page": Loadout cannot download it itself and opens url, the official download page.
+ * url may also be set on the other types, as a page to fall back to when a download fails.
  */
 @Serializable
 data class Source(
     val type: String,
     val repo: String = "",
+    val host: String = "",
     val url: String = "",
     val assets: List<AssetRule> = emptyList(),
 ) {
-    val downloadable: Boolean get() = type == "github" && repo.isNotBlank()
+    val downloadable: Boolean
+        get() = repo.isNotBlank() && (type == "github" || (type == "gitea" && host.isNotBlank()))
 }
 
 @Serializable

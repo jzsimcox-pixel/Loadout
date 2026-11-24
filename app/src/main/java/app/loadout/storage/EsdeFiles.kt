@@ -15,14 +15,16 @@ object EsdeSystems {
     private val command =
         Regex("<command(?:\\s+label=\"([^\"]*)\")?\\s*>(.*?)</command>", RegexOption.DOT_MATCHES_ALL)
 
+    fun stripComments(xml: String): String = xml.replace(comment, "")
+
     /** Maps ES-DE system name (nes, psx, ...) to its commands, in ES-DE's order. The first is the default. */
     fun parse(xml: String): Map<String, List<EsdeCommand>> {
         val result = LinkedHashMap<String, List<EsdeCommand>>()
-        for (block in system.findAll(xml.replace(comment, ""))) {
+        for (block in system.findAll(stripComments(xml))) {
             val body = block.groupValues[1]
             val systemName = name.find(body)?.groupValues?.get(1)?.lowercase() ?: continue
             val commands = command.findAll(body).map {
-                EsdeCommand(unescape(it.groupValues[1]), it.groupValues[2].trim())
+                EsdeCommand(unescape(it.groupValues[1]), unescape(it.groupValues[2].trim()))
             }.toList()
             if (commands.isNotEmpty()) result[systemName] = commands
         }
@@ -40,23 +42,27 @@ object EsdeMatcher {
     private val bracket = Regex("\\s*\\((.*)\\)$")
     private val token = Regex("%EMULATOR_([^%]+)%")
 
-    /** Returns the matching command, or null when ES-DE does not list this emulator for the system. */
-    fun find(emulator: Emulator, commands: List<EsdeCommand>): EsdeCommand? {
+    /**
+     * True when this ES-DE command launches the given emulator. Plain "RetroArch" is satisfied
+     * by any RetroArch core; "RetroArch (Core)" only by that core.
+     */
+    fun satisfies(emulator: Emulator, command: EsdeCommand): Boolean {
         val base = emulator.name.replace(bracket, "")
         val core = bracket.find(emulator.name)?.groupValues?.get(1)
+        val isRetroArch = "%EMULATOR_RETROARCH%" in command.command
         if (normalize(base) == "retroarch") {
-            val retroarch = commands.filter { "%EMULATOR_RETROARCH%" in it.command }
-            if (core == null) return retroarch.firstOrNull()
-            return retroarch.firstOrNull { normalize(it.label) == normalize(core) }
+            return isRetroArch && (core == null || normalize(command.label) == normalize(core))
         }
+        if (isRetroArch) return false
         val wanted = (listOf(base) + emulator.appNames).map(::normalize)
-        return commands.firstOrNull { candidate ->
-            if ("%EMULATOR_RETROARCH%" in candidate.command) return@firstOrNull false
-            val label = normalize(candidate.label.replace(bracket, ""))
-            val launcher = token.find(candidate.command)?.groupValues?.get(1)?.let(::normalize)
-            (label.isNotEmpty() && label in wanted) || (label.isEmpty() && launcher in wanted)
-        }
+        val label = normalize(command.label.replace(bracket, ""))
+        val launcher = token.find(command.command)?.groupValues?.get(1)?.let(::normalize)
+        return (label.isNotEmpty() && label in wanted) || (launcher != null && launcher in wanted)
     }
+
+    /** Returns the first matching command, or null when ES-DE does not list this emulator for the system. */
+    fun find(emulator: Emulator, commands: List<EsdeCommand>): EsdeCommand? =
+        commands.firstOrNull { satisfies(emulator, it) }
 }
 
 /** Reads and edits the emulator choice ES-DE keeps at the top of a system's gamelist.xml. */
@@ -102,10 +108,96 @@ object EsdeSettings {
     }
 }
 
-enum class EsdeStatus { ALREADY, CHANGE, NOT_LISTED, NO_SYSTEM }
+/** An emulator to teach ES-DE about, for one system. entry is "package/activity". */
+data class EsdeAddition(
+    val system: String,
+    val label: String,
+    val command: String,
+    val findName: String,
+    val entry: String,
+)
+
+/**
+ * Adds an emulator ES-DE does not know to ES-DE's custom systems files. A custom system
+ * definition replaces the bundled one, so the bundled definition is copied and extended.
+ */
+object EsdeCustom {
+    private fun escape(text: String): String =
+        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    private fun blockFor(xml: String, system: String): MatchResult? =
+        Regex(
+            "<system>(?:(?!</system>).)*?<name>\\s*" + Regex.escape(system) + "\\s*</name>.*?</system>",
+            setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
+        ).find(xml)
+
+    private fun insertCommand(block: String, line: String): String? {
+        val end = block.lastIndexOf("</command>")
+        if (end < 0) return null
+        val cut = end + "</command>".length
+        return block.substring(0, cut) + "\n" + line + block.substring(cut)
+    }
+
+    /** New text for custom_systems/es_systems.xml, or null when the system cannot be found anywhere. */
+    fun withCommand(customXml: String?, bundledXml: String, add: EsdeAddition): String? {
+        val line = "\t\t<command label=\"${escape(add.label).replace("\"", "&quot;")}\">${escape(add.command)}</command>"
+        val custom = customXml?.takeIf { it.isNotBlank() }
+        val existing = custom?.let { blockFor(it, add.system) }
+        if (custom != null && existing != null) {
+            if ("label=\"${add.label}\"" in existing.value) return custom
+            val updated = insertCommand(existing.value, line) ?: return null
+            return custom.replaceRange(existing.range, updated)
+        }
+        val bundled = blockFor(EsdeSystems.stripComments(bundledXml), add.system)?.value ?: return null
+        val block = insertCommand(bundled, line) ?: return null
+        if (custom == null) return "<?xml version=\"1.0\"?>\n<systemList>\n\t$block\n</systemList>\n"
+        val end = custom.lastIndexOf("</systemList>")
+        if (end < 0) return null
+        return custom.substring(0, end) + "\t" + block + "\n" + custom.substring(end)
+    }
+
+    /** New text for custom_systems/es_find_rules.xml, or null when the existing file cannot be extended. */
+    fun withFindRule(customRules: String?, add: EsdeAddition): String? {
+        val block = "\t<emulator name=\"${add.findName}\">\n\t\t<rule type=\"androidpackage\">\n" +
+            "\t\t\t<entry>${escape(add.entry)}</entry>\n\t\t</rule>\n\t</emulator>\n"
+        val rules = customRules?.takeIf { it.isNotBlank() }
+            ?: return "<?xml version=\"1.0\"?>\n<ruleList>\n$block</ruleList>\n"
+        if ("<emulator name=\"${add.findName}\">" in rules) return rules
+        val end = rules.lastIndexOf("</ruleList>")
+        if (end < 0) return null
+        return rules.substring(0, end) + block + rules.substring(end)
+    }
+
+    /** Writes both custom files, backing up any that exist. Nothing is written unless both can be. */
+    fun apply(dataDir: File, bundledXml: String, add: EsdeAddition): Boolean {
+        val dir = File(dataDir, "custom_systems")
+        val systemsFile = File(dir, "es_systems.xml")
+        val rulesFile = File(dir, "es_find_rules.xml")
+        return try {
+            val systems = withCommand(systemsFile.takeIf { it.isFile }?.readText(), bundledXml, add) ?: return false
+            val rules = withFindRule(rulesFile.takeIf { it.isFile }?.readText(), add) ?: return false
+            dir.mkdirs()
+            if (systemsFile.isFile) EsdePlanner.backup(systemsFile)
+            if (rulesFile.isFile) EsdePlanner.backup(rulesFile)
+            systemsFile.writeText(systems)
+            rulesFile.writeText(rules)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+}
+
+enum class EsdeStatus { ALREADY, CHANGE, ADDABLE, NOT_LISTED, NO_SYSTEM }
 
 /** One system the user set up, with the emulator Loadout would have ES-DE use. */
-data class EsdePick(val recipe: SystemRecipe, val emulator: Emulator, val folderName: String?)
+data class EsdePick(
+    val recipe: SystemRecipe,
+    val emulator: Emulator,
+    val folderName: String?,
+    /** The emulator's package on this device, when Loadout has found it installed. */
+    val installedPackage: String? = null,
+)
 
 data class EsdeRow(
     val systemId: String,
@@ -119,49 +211,99 @@ data class EsdeRow(
     val file: File?,
     /** True when applying would replace a choice the user made inside ES-DE. */
     val replacesUserChoice: Boolean,
+    /** Set when the emulator must first be added to ES-DE's custom systems. */
+    val addition: EsdeAddition? = null,
 )
 
 object EsdePlanner {
     const val BACKUP_SUFFIX = ".loadout-backup"
 
+    private fun esdeName(recipe: SystemRecipe, folderName: String?, systems: Map<String, List<EsdeCommand>>): String? =
+        (listOfNotNull(folderName) + recipe.folders).map { it.lowercase() }.firstOrNull { it in systems }
+
+    private fun gamelist(dataDir: File, esdeName: String) = File(dataDir, "gamelists/$esdeName/gamelist.xml")
+
+    /** The command ES-DE uses for a system today: the user's override if valid, else the default. */
+    private fun effective(commands: List<EsdeCommand>, file: File): Pair<EsdeCommand, Boolean> {
+        val label = if (file.isFile) Gamelists.currentLabel(file.readText()) else null
+        val override = label?.let { wanted -> commands.firstOrNull { it.label == wanted } }
+        return (override ?: commands.first()) to (override != null)
+    }
+
     fun plan(picks: List<EsdePick>, systems: Map<String, List<EsdeCommand>>, dataDir: File): List<EsdeRow> =
         picks.map { pick ->
             val title = "${pick.recipe.code} · ${pick.recipe.name}"
             val shown = pick.emulator.name
-            val names = (listOfNotNull(pick.folderName) + pick.recipe.folders).map { it.lowercase() }
-            val esdeName = names.firstOrNull { it in systems }
+            val name = esdeName(pick.recipe, pick.folderName, systems)
                 ?: return@map EsdeRow(pick.recipe.id, title, shown, EsdeStatus.NO_SYSTEM, "", null, null, false)
-            val commands = systems.getValue(esdeName)
-            val file = File(dataDir, "gamelists/$esdeName/gamelist.xml")
-            val override = if (file.isFile) {
-                Gamelists.currentLabel(file.readText())?.takeIf { label -> commands.any { it.label == label } }
-            } else {
-                null
+            val commands = systems.getValue(name)
+            val file = gamelist(dataDir, name)
+            val (current, isOverride) = effective(commands, file)
+            if (EsdeMatcher.satisfies(pick.emulator, current)) {
+                return@map EsdeRow(pick.recipe.id, title, shown, EsdeStatus.ALREADY, current.label, null, file, false)
             }
-            val default = commands.first()
-            val effective = override ?: default.label
             val match = EsdeMatcher.find(pick.emulator, commands)
-                ?: return@map EsdeRow(pick.recipe.id, title, shown, EsdeStatus.NOT_LISTED, effective, null, file, false)
-            if (match.label == effective) {
-                return@map EsdeRow(pick.recipe.id, title, shown, EsdeStatus.ALREADY, effective, null, file, false)
+            if (match == null) {
+                val spec = pick.emulator.esde
+                    ?: return@map EsdeRow(pick.recipe.id, title, shown, EsdeStatus.NOT_LISTED, current.label, null, file, false)
+                val addition = EsdeAddition(
+                    system = name,
+                    label = spec.label,
+                    command = spec.command,
+                    findName = spec.find,
+                    entry = "${pick.installedPackage ?: spec.packageId}/${spec.activity}",
+                )
+                return@map EsdeRow(
+                    pick.recipe.id, title, shown, EsdeStatus.ADDABLE, current.label, spec.label, file, isOverride, addition,
+                )
             }
             EsdeRow(
                 systemId = pick.recipe.id,
                 title = title,
                 emulator = shown,
                 status = EsdeStatus.CHANGE,
-                current = effective,
-                target = if (match == default) null else match.label,
+                current = current.label,
+                target = if (match == commands.first()) null else match.label,
                 file = file,
-                replacesUserChoice = override != null,
+                replacesUserChoice = isOverride,
             )
         }
 
-    /** Writes the changes. Each edited file is copied to a backup first, once. Returns the rows that failed. */
-    fun apply(rows: List<EsdeRow>): List<EsdeRow> = rows.filter { row ->
+    /**
+     * For systems where the user picked an emulator inside ES-DE, returns which of Loadout's
+     * options that is, so Loadout can show the same choice. Systems on the recommended one are left out.
+     */
+    fun adopt(
+        recipes: List<Pair<SystemRecipe, String?>>,
+        systems: Map<String, List<EsdeCommand>>,
+        dataDir: File,
+    ): Map<String, Emulator> {
+        val result = LinkedHashMap<String, Emulator>()
+        for ((recipe, folderName) in recipes) {
+            val name = esdeName(recipe, folderName, systems) ?: continue
+            val (current, _) = effective(systems.getValue(name), gamelist(dataDir, name))
+            if (EsdeMatcher.satisfies(recipe.emulator, current)) continue
+            recipe.alternates.firstOrNull { EsdeMatcher.satisfies(it, current) }?.let { result[recipe.id] = it }
+        }
+        return result
+    }
+
+    /** Applies rows that only change the emulator choice. Returns the rows that failed. */
+    fun apply(rows: List<EsdeRow>): List<EsdeRow> = applyAll(rows, null, null)
+
+    /**
+     * Writes the changes. Rows that add an emulator need the data folder and ES-DE's bundled
+     * systems file. Each edited file is copied to a backup first, once. Returns the rows that failed.
+     */
+    fun applyAll(rows: List<EsdeRow>, dataDir: File?, bundledXml: String?): List<EsdeRow> = rows.filter { row ->
         val file = row.file
-        if (row.status != EsdeStatus.CHANGE || file == null) return@filter false
+        if (file == null || (row.status != EsdeStatus.CHANGE && row.status != EsdeStatus.ADDABLE)) return@filter false
         try {
+            if (row.status == EsdeStatus.ADDABLE) {
+                val addition = row.addition
+                if (addition == null || dataDir == null || bundledXml == null) return@filter true
+                if (!EsdeCustom.apply(dataDir, bundledXml, addition)) return@filter true
+            }
             file.parentFile?.mkdirs()
             val existing = if (file.isFile) file.readText() else null
             if (existing != null) backup(file)

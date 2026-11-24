@@ -1,5 +1,5 @@
 {
-  "version": 10,
+  "version": 11,
   "systems": [
     {
       "id": "nes",
@@ -576,6 +576,13 @@
           "type": "github",
           "repo": "SapphireRhodonite/WatermelonDS",
           "assets": []
+        },
+        "esde": {
+          "label": "WatermelonDS (Standalone)",
+          "find": "WATERMELONDS",
+          "command": "%EMULATOR_WATERMELONDS% %ACTION%=me.magnum.melonds.LAUNCH_ROM %EXTRA_uri%=%ROMSAF%",
+          "packageId": "me.magnum.melondualds",
+          "activity": "me.magnum.melonds.ui.emulator.EmulatorActivity"
         }
       },
       "alternates": [
@@ -963,6 +970,13 @@
               "match": "\\.apk$"
             }
           ]
+        },
+        "esde": {
+          "label": "ARMSX3 (Standalone)",
+          "find": "ARMSX3",
+          "command": "%EMULATOR_ARMSX3% %EXTRA_path%=%ROM%",
+          "packageId": "com.armsx3",
+          "activity": "com.armsx2.Main"
         }
       },
       "alternates": [

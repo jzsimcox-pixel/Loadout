@@ -895,12 +895,15 @@ fun EsdeScreen(
                     EsdeStatus.CHANGE ->
                         if (row.systemId in included) "$current → ${row.emulator} · will change"
                         else "stays on $current · A to switch to ${row.emulator}"
+                    EsdeStatus.ADDABLE ->
+                        if (row.systemId in included) "add ${row.emulator} to ES-DE and switch · will change"
+                        else "ES-DE doesn't list ${row.emulator} · A to add it and switch"
                 }
                 SetupRow(
                     name = row.title,
                     value = text,
                     onClick = {
-                        if (row.status == EsdeStatus.CHANGE) {
+                        if (row.status == EsdeStatus.CHANGE || row.status == EsdeStatus.ADDABLE) {
                             included = if (row.systemId in included) included - row.systemId else included + row.systemId
                         }
                     },
@@ -928,6 +931,40 @@ fun EsdeScreen(
                 onClick = onBack,
                 modifier = if (rows.isEmpty()) Modifier.focusRequester(firstFocus) else Modifier,
             )
+        }
+    }
+}
+
+// ---------------------------------------------------------------- Crash report
+
+@Composable
+fun CrashScreen(report: String, onContinue: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { requestFocusSafely(focus) }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Palette.Bg)
+            .padding(ScreenPadding),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        TopBar("Loadout closed unexpectedly last time", "")
+        Label("Nothing was lost. A photo of this screen helps find the cause.", size = 13.sp, color = Palette.Muted)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Palette.Surface)
+                .border(1.dp, Palette.Border, RoundedCornerShape(14.dp))
+                .padding(12.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Label(report, size = 11.sp)
+        }
+        BottomBar {
+            Spacer(Modifier.weight(1f))
+            ActionButton(text = "Continue", onClick = onContinue, primary = true, modifier = Modifier.focusRequester(focus))
         }
     }
 }

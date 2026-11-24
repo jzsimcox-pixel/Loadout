@@ -33,6 +33,20 @@ data class Source(
         get() = repo.isNotBlank() && (type == "github" || (type == "gitea" && host.isNotBlank()))
 }
 
+/**
+ * How to describe an emulator to ES-DE when ES-DE's own list does not include it.
+ * label: the name ES-DE shows. find: the name used in %EMULATOR_...% and in find rules.
+ * command: the launch command. packageId and activity: what ES-DE starts.
+ */
+@Serializable
+data class EsdeSpec(
+    val label: String,
+    val find: String,
+    val command: String,
+    val packageId: String,
+    val activity: String,
+)
+
 @Serializable
 data class Emulator(
     val name: String,
@@ -44,6 +58,7 @@ data class Emulator(
     val packages: List<String> = emptyList(),
     /** "self" means the app updates itself, so Loadout installs it once and then leaves updates to it. */
     val updates: String = "loadout",
+    val esde: EsdeSpec? = null,
 )
 
 /**

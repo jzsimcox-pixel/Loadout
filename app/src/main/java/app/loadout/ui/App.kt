@@ -26,7 +26,6 @@ import app.loadout.install.InstallManager
 import app.loadout.install.InstallState
 import app.loadout.install.ThemeInstaller
 import app.loadout.storage.EsdePick
-import app.loadout.storage.EsdePlanner
 import app.loadout.storage.LogoIndex
 import app.loadout.storage.LogoRenderer
 import app.loadout.storage.Prefs
@@ -46,7 +45,15 @@ private sealed interface Screen {
 }
 
 @Composable
-fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
+fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrashSeen: () -> Unit) {
+    var showCrash by remember { mutableStateOf(crashReport != null) }
+    if (showCrash && crashReport != null) {
+        CrashScreen(report = crashReport) {
+            onCrashSeen()
+            showCrash = false
+        }
+        return
+    }
     val context = LocalContext.current
     val device = remember { DeviceDetector.detect(context) }
 
@@ -104,8 +111,18 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
         }
     }
 
+    // Choices already made inside ES-DE, used when the user has not picked in Loadout.
+    var adopted by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+
+    LaunchedEffect(hasAccess, volume, resumeCount) {
+        if (hasAccess) {
+            val recipes = catalog.systems.map { it to volume?.card?.folderFor(it.id)?.name }
+            adopted = withContext(Dispatchers.IO) { EsdeHookup.adopt(context, recipes) }
+        }
+    }
+
     fun chosenEmulator(recipe: SystemRecipe): Emulator {
-        val name = choices[recipe.id] ?: Prefs.loadEmulatorChoice(context, recipe.id)
+        val name = choices[recipe.id] ?: Prefs.loadEmulatorChoice(context, recipe.id) ?: adopted[recipe.id]
         return (listOf(recipe.emulator) + recipe.alternates).firstOrNull { it.name == name } ?: recipe.emulator
     }
 
@@ -249,7 +266,13 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
 
         Screen.Esde -> {
             val picks = catalog.systems.filter { it.id in chosen }.map { recipe ->
-                EsdePick(recipe, chosenEmulator(recipe), volume?.card?.folderFor(recipe.id)?.name)
+                val emulator = chosenEmulator(recipe)
+                EsdePick(
+                    recipe = recipe,
+                    emulator = emulator,
+                    folderName = volume?.card?.folderFor(recipe.id)?.name,
+                    installedPackage = Prefs.loadPackageId(context, emulator.name),
+                )
             }
             LaunchedEffect(esdeReload, resumeCount) {
                 esdeView = withContext(Dispatchers.IO) { EsdeHookup.load(context, picks) }
@@ -259,9 +282,9 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
                 message = esdeMessage,
                 onApply = { rows ->
                     scope.launch {
-                        val failed = withContext(Dispatchers.IO) { EsdePlanner.apply(rows) }
+                        val failed = withContext(Dispatchers.IO) { EsdeHookup.apply(rows) }
                         esdeMessage = if (failed.isEmpty()) {
-                            "Done. ${rows.size} changed. Open ES-DE to check."
+                            "Done. ${rows.size} changed. Fully close and reopen ES-DE to check."
                         } else {
                             "${rows.size - failed.size} changed, ${failed.size} could not be written."
                         }

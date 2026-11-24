@@ -1,6 +1,7 @@
 package app.loadout.install
 
 import android.content.Context
+import app.loadout.data.SystemRecipe
 import app.loadout.storage.EsdeCommand
 import app.loadout.storage.EsdePick
 import app.loadout.storage.EsdePlanner
@@ -45,8 +46,8 @@ object EsdeHookup {
         return listOfNotNull(app.sourceDir) + app.splitSourceDirs.orEmpty()
     }
 
-    /** ES-DE ships its emulator list inside its own install package. Read it from there. */
-    private fun bundledSystems(apks: List<String>): Map<String, List<EsdeCommand>> {
+    /** ES-DE ships its emulator list inside its own install package. Read the file from there. */
+    private fun bundledXml(apks: List<String>): String? {
         for (path in apks) {
             try {
                 ZipFile(path).use { zip ->
@@ -54,15 +55,52 @@ object EsdeHookup {
                     val entry = entries.firstOrNull { "android" in it.name.lowercase() } ?: entries.firstOrNull()
                     if (entry != null) {
                         val text = zip.getInputStream(entry).bufferedReader().use { it.readText() }
-                        val parsed = EsdeSystems.parse(text)
-                        if (parsed.isNotEmpty()) return parsed
+                        if (EsdeSystems.parse(text).isNotEmpty()) return text
                     }
                 }
             } catch (_: Exception) {
                 // Try the next package file.
             }
         }
-        return emptyMap()
+        return null
+    }
+
+    private class Loaded(val data: File, val bundled: String, val systems: Map<String, List<EsdeCommand>>)
+
+    @Volatile
+    private var last: Loaded? = null
+
+    private fun read(context: Context): Loaded? {
+        val apks = apkPaths(context) ?: return null
+        val data = dataDir(context) ?: return null
+        val bundled = bundledXml(apks) ?: return null
+        val systems = LinkedHashMap(EsdeSystems.parse(bundled))
+        val custom = File(data, "custom_systems/es_systems.xml")
+        if (custom.isFile) {
+            try {
+                systems.putAll(EsdeSystems.parse(custom.readText()))
+            } catch (_: Exception) {
+                // A broken custom file is ES-DE's to report. Use the bundled list.
+            }
+        }
+        return Loaded(data, bundled, systems).also { last = it }
+    }
+
+    /**
+     * Emulators the user already chose inside ES-DE, by system id, limited to ones that are
+     * installed. Lets Loadout show the same choice instead of its own recommendation.
+     */
+    fun adopt(context: Context, recipes: List<Pair<SystemRecipe, String?>>): Map<String, String> {
+        val loaded = read(context) ?: return emptyMap()
+        return EsdePlanner.adopt(recipes, loaded.systems, loaded.data)
+            .filterValues { InstallManager.findInstalled(context, it) != null }
+            .mapValues { it.value.name }
+    }
+
+    /** Writes the chosen rows. Returns the ones that failed. */
+    fun apply(rows: List<EsdeRow>): List<EsdeRow> {
+        val loaded = last
+        return EsdePlanner.applyAll(rows, loaded?.data, loaded?.bundled)
     }
 
     private fun dataDir(context: Context): File? {
@@ -72,18 +110,10 @@ object EsdeHookup {
     }
 
     fun load(context: Context, picks: List<EsdePick>): EsdeView {
-        val apks = apkPaths(context) ?: return EsdeView.NotInstalled
+        if (apkPaths(context) == null) return EsdeView.NotInstalled
         val data = dataDir(context) ?: return EsdeView.NoDataFolder
-        val systems = LinkedHashMap(bundledSystems(apks))
-        val custom = File(data, "custom_systems/es_systems.xml")
-        if (custom.isFile) {
-            try {
-                systems.putAll(EsdeSystems.parse(custom.readText()))
-            } catch (_: Exception) {
-                // A broken custom file is ES-DE's to report. Use the bundled list.
-            }
-        }
-        if (systems.isEmpty()) return EsdeView.NoSystemList
+        val loaded = read(context) ?: return EsdeView.NoSystemList
+        val systems = loaded.systems
 
         val settings = File(data, "settings/es_settings.xml")
         val currentTheme = if (settings.isFile) EsdeSettings.currentTheme(settings.readText()) else null

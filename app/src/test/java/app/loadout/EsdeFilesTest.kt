@@ -190,4 +190,83 @@ class EsdeFilesTest {
         assertTrue(updated.contains("<bool name=\"A\" value=\"true\" />"))
         assertNull(EsdeSettings.withTheme("<?xml version=\"1.0\"?>\n<bool name=\"A\" value=\"true\" />\n", "x"))
     }
+
+    @Test
+    fun plainRetroArchIsSatisfiedByAnyCoreTheUserChose() {
+        val data = temp.newFolder("ES-DE")
+        val file = File(data, "gamelists/nes/gamelist.xml")
+        file.parentFile?.mkdirs()
+        file.writeText(Gamelists.withLabel(null, "Nestopia UE"))
+        val row = EsdePlanner.plan(listOf(pick("nes")), systems, data).single()
+        assertEquals(EsdeStatus.ALREADY, row.status)
+        assertEquals("Nestopia UE", row.current)
+    }
+
+    @Test
+    fun adoptsAnAlternateTheUserChoseInEsde() {
+        val data = temp.newFolder("ES-DE")
+        val file = File(data, "gamelists/ps2/gamelist.xml")
+        file.parentFile?.mkdirs()
+        file.writeText(Gamelists.withLabel(null, "ARMSX2 (Standalone)"))
+        // In this sample ES-DE list NetherSX2 is the default, so make it the recommended emulator.
+        val ps2 = catalog.byId("ps2")!!
+        val swapped = ps2.copy(emulator = Emulator("NetherSX2"), alternates = listOf(Emulator("ARMSX2")))
+        val adopted = EsdePlanner.adopt(listOf(swapped to null, catalog.byId("n64")!! to null), systems, data)
+        assertEquals(mapOf("ps2" to Emulator("ARMSX2")), adopted)
+    }
+
+    @Test
+    fun addsAnUnlistedEmulatorThroughCustomSystems() {
+        val data = temp.newFolder("ES-DE")
+        val spec = app.loadout.data.EsdeSpec(
+            label = "NewEmu (Standalone)",
+            find = "NEWEMU",
+            command = "%EMULATOR_NEWEMU% %EXTRA_path%=%ROM%",
+            packageId = "org.example.newemu",
+            activity = "org.example.Main",
+        )
+        val emulator = Emulator("NewEmu", esde = spec)
+        val row = EsdePlanner.plan(listOf(pick("ps2", emulator).copy(installedPackage = "org.example.real")), systems, data).single()
+        assertEquals(EsdeStatus.ADDABLE, row.status)
+        assertEquals("org.example.real/org.example.Main", row.addition?.entry)
+        assertTrue(EsdePlanner.applyAll(listOf(row), data, xml).isEmpty())
+
+        val custom = File(data, "custom_systems/es_systems.xml").readText()
+        val merged = EsdeSystems.parse(custom).getValue("ps2").map { it.label }
+        assertEquals(
+            listOf("NetherSX2 (Standalone)", "ARMSX2 (Standalone)", "Play! (Standalone)", "NewEmu (Standalone)"),
+            merged,
+        )
+        assertTrue(custom.contains("<fullname>Sony PlayStation 2</fullname>"))
+        val rules = File(data, "custom_systems/es_find_rules.xml").readText()
+        assertTrue(rules.contains("<emulator name=\"NEWEMU\">"))
+        assertTrue(rules.contains("<entry>org.example.real/org.example.Main</entry>"))
+        assertEquals("NewEmu (Standalone)", Gamelists.currentLabel(File(data, "gamelists/ps2/gamelist.xml").readText()))
+
+        // With the custom file merged in, ES-DE now lists it and nothing more is needed.
+        val after = EsdePlanner.plan(listOf(pick("ps2", emulator)), systems + EsdeSystems.parse(custom), data).single()
+        assertEquals(EsdeStatus.ALREADY, after.status)
+    }
+
+    @Test
+    fun customFilesAreExtendedNotReplaced() {
+        val data = temp.newFolder("ES-DE")
+        val dir = File(data, "custom_systems")
+        dir.mkdirs()
+        val mine = "<?xml version=\"1.0\"?>\n<systemList>\n\t<system>\n\t\t<name>mine</name>\n\t\t<command label=\"A\">%EMULATOR_A% %ROM%</command>\n\t</system>\n</systemList>\n"
+        File(dir, "es_systems.xml").writeText(mine)
+        val rules = "<?xml version=\"1.0\"?>\n<ruleList>\n\t<emulator name=\"A\">\n\t\t<rule type=\"androidpackage\">\n\t\t\t<entry>a/b</entry>\n\t\t</rule>\n\t</emulator>\n</ruleList>\n"
+        File(dir, "es_find_rules.xml").writeText(rules)
+        val add = app.loadout.storage.EsdeAddition("ps2", "NewEmu (Standalone)", "%EMULATOR_NEWEMU% %ROM%", "NEWEMU", "p/a")
+        assertTrue(app.loadout.storage.EsdeCustom.apply(data, xml, add))
+        val systemsNow = EsdeSystems.parse(File(dir, "es_systems.xml").readText())
+        assertEquals(setOf("mine", "ps2"), systemsNow.keys)
+        val rulesNow = File(dir, "es_find_rules.xml").readText()
+        assertTrue(rulesNow.contains("<emulator name=\"A\">") && rulesNow.contains("<emulator name=\"NEWEMU\">"))
+        assertEquals(mine, File(dir, "es_systems.xml.loadout-backup").readText())
+        assertEquals(rules, File(dir, "es_find_rules.xml.loadout-backup").readText())
+        // Applying twice adds nothing a second time.
+        assertTrue(app.loadout.storage.EsdeCustom.apply(data, xml, add))
+        assertEquals(1, Regex("NewEmu").findAll(File(dir, "es_systems.xml").readText()).count())
+    }
 }

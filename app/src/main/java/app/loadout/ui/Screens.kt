@@ -320,7 +320,7 @@ private fun SystemTile(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(92.dp)
+            .height(106.dp)
             .onFocusChanged { focused = it.isFocused }
             .onKeyEvent { event ->
                 if (event.key == Key.ButtonX && event.type == KeyEventType.KeyUp) {
@@ -340,7 +340,7 @@ private fun SystemTile(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
         ) {
             if (logo != null) {
                 Image(
@@ -348,7 +348,8 @@ private fun SystemTile(
                     contentDescription = recipe.name,
                     modifier = Modifier
                         .weight(1f)
-                        .height(34.dp),
+                        .height(56.dp)
+                        .clip(RoundedCornerShape(6.dp)),
                     contentScale = ContentScale.Fit,
                     alignment = Alignment.CenterStart,
                 )

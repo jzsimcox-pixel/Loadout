@@ -77,7 +77,7 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
                 val roots = LogoIndex.searchRoots(Storage.volumeRoots(context))
                 val files = LogoIndex.find(roots, catalog)
                 val images = files.mapNotNull { (id, file) ->
-                    LogoRenderer.render(file, 360, 120)?.let { id to it.asImageBitmap() }
+                    LogoRenderer.render(file, 480, 200)?.let { id to it.asImageBitmap() }
                 }.toMap()
                 val text = when {
                     roots.isEmpty() -> "Logos: none. No theme or icons folder was found on this device."

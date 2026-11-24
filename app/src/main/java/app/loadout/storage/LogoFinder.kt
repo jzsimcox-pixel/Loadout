@@ -17,10 +17,59 @@ object LogoIndex {
     private val EXTENSIONS = listOf("svg", "png", "webp")
     private const val MAX_DEPTH = 8
 
-    /** Folders to search, user-supplied icons first so they win over theme logos. */
-    fun searchRoots(volumes: List<File>): List<File> =
-        (volumes.map { File(it, "Loadout/icons") } + volumes.map { File(it, "ES-DE/themes") })
-            .filter { it.isDirectory }
+    /**
+     * Folders to search, user-supplied icons first so they win over theme logos.
+     * Themes are looked for in every "ES-DE" folder near the top of each volume, in the
+     * custom theme folder named in ES-DE's settings, and in any folder named like a
+     * downloaded theme ("something-es-de").
+     */
+    fun searchRoots(volumes: List<File>): List<File> {
+        val roots = LinkedHashSet<File>()
+        for (volume in volumes) {
+            File(volume, "Loadout/icons").takeIf { it.isDirectory }?.let { roots += it }
+        }
+        for (volume in volumes) {
+            for (dir in directories(volume, 3)) {
+                val name = dir.name.lowercase()
+                if (name == "es-de") {
+                    File(dir, "themes").takeIf { it.isDirectory }?.let { roots += it }
+                    customThemeDir(dir)?.let { roots += it }
+                } else if (name.endsWith("-es-de")) {
+                    roots += dir
+                }
+            }
+        }
+        return roots.toList()
+    }
+
+    /** The theme folder the user set inside ES-DE, if any. */
+    private fun customThemeDir(esdeDir: File): File? {
+        val settings = File(esdeDir, "settings/es_settings.xml")
+        if (!settings.isFile) return null
+        val text = try {
+            settings.readText()
+        } catch (_: Exception) {
+            return null
+        }
+        val value = Regex("name=\"UserThemeDirectory\"\\s+value=\"([^\"]*)\"").find(text)?.groupValues?.get(1)
+        if (value.isNullOrBlank()) return null
+        return File(value).takeIf { it.isDirectory }
+    }
+
+    /** Every folder down to maxDepth levels below root, skipping hidden and system folders. */
+    private fun directories(root: File, maxDepth: Int): List<File> {
+        val result = ArrayList<File>()
+        fun visit(dir: File, depth: Int) {
+            if (depth > maxDepth) return
+            for (entry in dir.listFiles().orEmpty()) {
+                if (!entry.isDirectory || entry.name.startsWith(".") || entry.name == "Android") continue
+                result += entry
+                visit(entry, depth + 1)
+            }
+        }
+        visit(root, 1)
+        return result
+    }
 
     /** Maps system id to the best logo file found. Read-only. */
     fun find(roots: List<File>, catalog: Catalog): Map<String, File> {

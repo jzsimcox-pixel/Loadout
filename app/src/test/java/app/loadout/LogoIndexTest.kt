@@ -52,4 +52,28 @@ class LogoIndexTest {
     fun noFoldersMeansNoLogos() {
         assertEquals(emptyMap<String, File>(), LogoIndex.find(LogoIndex.searchRoots(listOf(temp.root)), catalog))
     }
+
+    @Test
+    fun findsThemesInANestedEsdeFolder() {
+        file("Emulation/ES-DE/themes/sample/logos/gba.svg")
+        val found = LogoIndex.find(LogoIndex.searchRoots(listOf(temp.root)), catalog)
+        assertEquals("gba.svg", found["gba"]?.name)
+    }
+
+    @Test
+    fun followsTheCustomThemeFolderFromEsdeSettings() {
+        val custom = File(temp.root, "MyThemes")
+        file("MyThemes/sample/logos/snes.svg")
+        val settings = file("ES-DE/settings/es_settings.xml")
+        settings.writeText("<string name=\"UserThemeDirectory\" value=\"${custom.path}\" />")
+        val found = LogoIndex.find(LogoIndex.searchRoots(listOf(temp.root)), catalog)
+        assertEquals("snes.svg", found["snes"]?.name)
+    }
+
+    @Test
+    fun findsADownloadedThemeFolderByItsName() {
+        file("Stuff/art-book-next-es-de/_inc/systems/logos/n64.svg")
+        val found = LogoIndex.find(LogoIndex.searchRoots(listOf(temp.root)), catalog)
+        assertEquals("n64.svg", found["n64"]?.name)
+    }
 }

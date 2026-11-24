@@ -65,15 +65,26 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
     val choices = remember { mutableStateMapOf<String, String>() }
     // Logos found on the device, by system id. Empty until the scan has run.
     var logos by remember { mutableStateOf<Map<String, ImageBitmap>>(emptyMap()) }
+    var logoNote by remember { mutableStateOf("") }
 
     LaunchedEffect(hasAccess, rescanCount) {
         if (hasAccess) {
-            logos = withContext(Dispatchers.IO) {
-                val files = LogoIndex.find(LogoIndex.searchRoots(Storage.volumeRoots(context)), catalog)
-                files.mapNotNull { (id, file) ->
+            val (found, note) = withContext(Dispatchers.IO) {
+                val roots = LogoIndex.searchRoots(Storage.volumeRoots(context))
+                val files = LogoIndex.find(roots, catalog)
+                val images = files.mapNotNull { (id, file) ->
                     LogoRenderer.render(file, 360, 120)?.let { id to it.asImageBitmap() }
                 }.toMap()
+                val text = when {
+                    roots.isEmpty() -> "Logos: none. No theme or icons folder was found on this device."
+                    files.isEmpty() -> "Logos: none found in " + roots.joinToString(", ") { it.path }
+                    images.size < files.size -> "Logos: ${images.size} shown, ${files.size - images.size} could not be drawn."
+                    else -> "Logos: ${images.size} found."
+                }
+                images to text
             }
+            logos = found
+            logoNote = note
         }
     }
 
@@ -121,6 +132,7 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
             scan = volume?.card,
             selected = chosen,
             logos = logos,
+            logoNote = logoNote,
             onToggle = { toggle(it) },
             onDetails = { screen = Screen.Detail(it, fromReview = false) },
             onContinue = {

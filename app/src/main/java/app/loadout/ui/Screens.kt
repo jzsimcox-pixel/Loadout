@@ -218,6 +218,7 @@ fun SystemsScreen(
     scan: CardScan?,
     selected: Set<String>,
     logos: Map<String, ImageBitmap>,
+    logoNote: String,
     onToggle: (String) -> Unit,
     onDetails: (String) -> Unit,
     onContinue: () -> Unit,
@@ -244,13 +245,16 @@ fun SystemsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom,
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Label("Pick your systems", size = 24.sp, weight = FontWeight.Bold)
                 Label(
                     "Systems with games on your card start selected.",
                     size = 13.sp,
                     color = Palette.Muted,
                 )
+                if (logoNote.isNotBlank()) {
+                    Label(logoNote, size = 11.sp, color = Palette.Muted, maxLines = 1)
+                }
             }
             Label("${selected.size} selected", size = 14.sp, weight = FontWeight.SemiBold)
         }

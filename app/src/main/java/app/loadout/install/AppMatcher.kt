@@ -15,6 +15,9 @@ object AppMatcher {
         val label = normalize(appLabel)
         if (label.isEmpty()) return false
         val wanted = (listOf(baseName(emulator.name)) + emulator.appNames).map(::normalize)
-        return label in wanted
+        if (label in wanted) return true
+        // Builds often add a qualifier in brackets, such as "RetroArch (AArch64)".
+        val withoutBrackets = normalize(appLabel.replace(Regex("\\s*[\\(\\[].*$"), ""))
+        return withoutBrackets.isNotEmpty() && withoutBrackets in wanted
     }
 }

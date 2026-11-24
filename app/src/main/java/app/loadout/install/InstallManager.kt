@@ -92,6 +92,12 @@ object InstallManager {
         Prefs.loadPackageId(context, emulator.name)?.let { known ->
             info(context, known)?.let { return describe(context, it) }
         }
+        for (known in emulator.packages) {
+            info(context, known)?.let { found ->
+                Prefs.savePackageId(context, emulator.name, found.packageName)
+                return describe(context, found)
+            }
+        }
         val manager = context.packageManager
         for (app in manager.getInstalledApplications(0)) {
             val label = manager.getApplicationLabel(app).toString()

@@ -36,6 +36,8 @@ data class Emulator(
     val source: Source? = null,
     /** Other names the installed app may show under, such as a paid edition. */
     val appNames: List<String> = emptyList(),
+    /** Android package names this emulator is known to use, checked before app names. */
+    val packages: List<String> = emptyList(),
     /** "self" means the app updates itself, so Loadout installs it once and then leaves updates to it. */
     val updates: String = "loadout",
 )

@@ -49,6 +49,7 @@ import app.loadout.data.Catalog
 import app.loadout.data.Emulator
 import app.loadout.data.SystemRecipe
 import app.loadout.device.DeviceInfo
+import app.loadout.install.AppMatcher
 import app.loadout.install.InstallState
 import app.loadout.storage.CardScan
 import app.loadout.storage.FolderPlanner
@@ -401,7 +402,11 @@ fun DetailScreen(
                 )
                 StatusLine(
                     installState is InstallState.Installed,
-                    if (installState is InstallState.Installed) "${recipe.emulator.name} installed" else "${recipe.emulator.name} not confirmed",
+                    if (installState is InstallState.Installed) {
+                        "${AppMatcher.baseName(recipe.emulator.name)} installed"
+                    } else {
+                        "${AppMatcher.baseName(recipe.emulator.name)} not found"
+                    },
                 )
                 if (recipe.dualScreen) {
                     StatusLine(
@@ -486,7 +491,7 @@ private fun installStatusText(emulator: Emulator, state: InstallState): String =
         if (emulator.source == null) {
             "Loadout can't install ${emulator.name} yet. Its download source hasn't been set up."
         } else if (!emulator.source.downloadable) {
-            "Not found on this device. Loadout can't download ${emulator.name} itself yet. Open its official download page, install it, then come back."
+            "Not found on this device. Loadout can't download ${AppMatcher.baseName(emulator.name)} itself yet. Open its official download page, install it, then come back."
         } else {
             "Press Install to check. If ${emulator.name} is already on this device and current, nothing is changed."
         }

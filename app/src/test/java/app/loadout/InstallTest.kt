@@ -132,3 +132,13 @@ class AppMatcherTest {
         assertEquals(false, app.loadout.install.AppMatcher.matches(emulator("Dolphin"), "Dolphin Browser"))
     }
 }
+
+class BracketNameTest {
+    @Test
+    fun bracketedBuildQualifiersStillMatch() {
+        val retroarch = app.loadout.data.Emulator(name = "RetroArch")
+        assertTrue(app.loadout.install.AppMatcher.matches(retroarch, "RetroArch (AArch64)"))
+        assertTrue(app.loadout.install.AppMatcher.matches(retroarch, "RetroArch [nightly]"))
+        assertEquals(false, app.loadout.install.AppMatcher.matches(retroarch, "RetroArch Companion"))
+    }
+}

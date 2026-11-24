@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "profile": "ayn-odin2-portal",
+  "placeholders": {
+    "BIOS_DIR": "the BIOS folder Loadout found or created",
+    "RETROARCH_DIR": "RetroArch's folder on internal storage or the card",
+    "RETROARCH_DATA": "RetroArch's own app data folder",
+    "PS2_BIOS_FILE": "file name of the PS2 BIOS Loadout found"
+  },
+  "emulators": {
+    "RetroArch": {
+      "files": [
+        {
+          "template": "retroarch/retroarch.cfg.patch",
+          "target": "retroarch.cfg",
+          "mode": "merge-cfg"
+        },
+        {
+          "template": "retroarch/config/Nestopia/Nestopia.opt",
+          "target": "config/Nestopia/Nestopia.opt",
+          "mode": "replace"
+        },
+        {
+          "template": "retroarch/config/Snes9x/Snes9x.opt",
+          "target": "config/Snes9x/Snes9x.opt",
+          "mode": "replace"
+        },
+        {
+          "template": "retroarch/config/Genesis Plus GX/Genesis Plus GX.opt",
+          "target": "config/Genesis Plus GX/Genesis Plus GX.opt",
+          "mode": "replace"
+        },
+        {
+          "template": "retroarch/config/Gambatte/Gambatte.opt",
+          "target": "config/Gambatte/Gambatte.opt",
+          "mode": "replace"
+        },
+        {
+          "template": "retroarch/config/mGBA/mGBA.opt",
+          "target": "config/mGBA/mGBA.opt",
+          "mode": "replace"
+        },
+        {
+          "template": "retroarch/config/SwanStation/SwanStation.opt",
+          "target": "config/SwanStation/SwanStation.opt",
+          "mode": "replace"
+        },
+        {
+          "template": "retroarch/shaders/crt-trinitron.slangp",
+          "target": "config/global.slangp",
+          "mode": "replace",
+          "optional": "shader"
+        }
+      ],
+      "resolution": [
+        {
+          "file": "retroarch/config/SwanStation/SwanStation.opt",
+          "key": "swanstation_GPU_ResolutionScale"
+        }
+      ]
+    },
+    "Dolphin": {
+      "files": [
+        {
+          "template": "dolphin/Dolphin.ini",
+          "target": "Config/Dolphin.ini",
+          "mode": "merge-ini"
+        },
+        {
+          "template": "dolphin/GFX.ini",
+          "target": "Config/GFX.ini",
+          "mode": "merge-ini"
+        },
+        {
+          "template": "dolphin/GCPadNew.ini",
+          "target": "Config/GCPadNew.ini",
+          "mode": "merge-ini"
+        },
+        {
+          "template": "dolphin/WiimoteNew.ini",
+          "target": "Config/WiimoteNew.ini",
+          "mode": "merge-ini"
+        }
+      ],
+      "resolution": [
+        {
+          "file": "dolphin/GFX.ini",
+          "key": "Settings/InternalResolution"
+        }
+      ]
+    },
+    "Eden": {
+      "files": [
+        {
+          "template": "eden/config.ini.patch",
+          "target": "config/config.ini",
+          "mode": "merge-ini"
+        }
+      ]
+    },
+    "ARMSX2": {
+      "files": [
+        {
+          "template": "armsx2/armsx2-settings.json",
+          "target": "armsx2-settings.json",
+          "mode": "merge-json"
+        },
+        {
+          "template": "armsx2/PCSX2-Android.ini",
+          "target": "PCSX2-Android.ini",
+          "mode": "replace"
+        }
+      ],
+      "resolution": [
+        {
+          "file": "armsx2/armsx2-settings.json",
+          "key": "global/upscaleFloat"
+        },
+        {
+          "file": "armsx2/PCSX2-Android.ini",
+          "key": "EmuCore/GS/upscale_multiplier"
+        }
+      ]
+    }
+  }
+}

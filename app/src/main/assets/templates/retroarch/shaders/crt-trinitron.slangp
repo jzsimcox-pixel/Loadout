@@ -1,0 +1,2 @@
+#reference "{{RETROARCH_DATA}}/shaders/shaders_slang/crt/crt-gdv-mini-ultra-trinitron.slangp"
+warpY = "0.000000"

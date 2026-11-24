@@ -51,9 +51,11 @@ import androidx.compose.ui.unit.sp
 import app.loadout.data.Catalog
 import app.loadout.data.Emulator
 import app.loadout.data.SystemRecipe
+import app.loadout.data.ThemeOption
 import app.loadout.device.DeviceInfo
 import app.loadout.install.AppMatcher
 import app.loadout.install.InstallState
+import app.loadout.install.ThemeState
 import app.loadout.storage.CardScan
 import app.loadout.storage.FolderPlanner
 import app.loadout.storage.Storage
@@ -219,6 +221,7 @@ fun SystemsScreen(
     selected: Set<String>,
     logos: Map<String, ImageBitmap>,
     logoNote: String,
+    onGetLogos: (() -> Unit)?,
     onToggle: (String) -> Unit,
     onDetails: (String) -> Unit,
     onContinue: () -> Unit,
@@ -283,6 +286,9 @@ fun SystemsScreen(
             KeyHint("X", "Details (or hold)")
             KeyHint("B", "Back")
             Spacer(Modifier.weight(1f))
+            if (onGetLogos != null) {
+                ActionButton(text = "Get logos", onClick = onGetLogos)
+            }
             ActionButton(text = "Continue", onClick = onContinue, primary = true)
         }
     }
@@ -751,5 +757,75 @@ private fun SetupRow(name: String, value: String, onClick: () -> Unit, modifier:
         Label(name, size = 13.sp, color = Palette.Muted, maxLines = 1)
         Spacer(Modifier.width(16.dp))
         Label(value, size = 14.sp, weight = FontWeight.SemiBold, maxLines = 1)
+    }
+}
+
+// ---------------------------------------------------------------- Theme
+
+@Composable
+fun ThemeScreen(
+    themes: List<ThemeOption>,
+    state: ThemeState,
+    onPick: (ThemeOption) -> Unit,
+    onContinue: () -> Unit,
+) {
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(state.working, state is ThemeState.Done) { requestFocusSafely(firstFocus) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Palette.Bg)
+            .padding(ScreenPadding),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        TopBar("Choose an ES-DE theme", "Optional")
+        Label(
+            text = when (state) {
+                ThemeState.Idle ->
+                    "Loadout downloads the theme into ES-DE's themes folder and uses its system logos. ES-DE can use it too."
+                is ThemeState.Downloading ->
+                    "Downloading… ${state.megabytes} MB so far. Large themes take a few minutes."
+                ThemeState.Unpacking -> "Unpacking the theme…"
+                is ThemeState.Done -> "${state.name} is installed."
+                is ThemeState.Failed -> "That did not work: ${state.message}"
+            },
+            size = 13.sp,
+            color = if (state is ThemeState.Failed) Palette.Warn else Palette.Muted,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Palette.Surface)
+                .border(1.dp, Palette.Border, RoundedCornerShape(14.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            if (!state.working && state !is ThemeState.Done) {
+                themes.forEachIndexed { index, option ->
+                    SetupRow(
+                        name = option.name,
+                        value = if (option.sizeMb > 0) "about ${option.sizeMb} MB" else "size unknown",
+                        onClick = { onPick(option) },
+                        modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                    )
+                }
+            }
+        }
+        BottomBar {
+            if (!state.working && state !is ThemeState.Done) KeyHint("A", "Download")
+            KeyHint("B", "Back")
+            Spacer(Modifier.weight(1f))
+            if (!state.working) {
+                ActionButton(
+                    text = if (state is ThemeState.Done) "Continue" else "Skip",
+                    onClick = onContinue,
+                    primary = state is ThemeState.Done,
+                    modifier = if (state is ThemeState.Done) Modifier.focusRequester(firstFocus) else Modifier,
+                )
+            }
+        }
     }
 }

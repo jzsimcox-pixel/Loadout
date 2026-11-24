@@ -40,7 +40,16 @@ object Net {
     }
 
     /** Downloads to a temporary file first, so a broken download never looks complete. */
-    fun download(url: String, target: File, onProgress: (percent: Int) -> Unit) {
+    /**
+     * onProgress reports a percentage when the server says how big the file is.
+     * onBytes reports the running total about once per megabyte, for downloads of unknown size.
+     */
+    fun download(
+        url: String,
+        target: File,
+        onBytes: (bytes: Long) -> Unit = {},
+        onProgress: (percent: Int) -> Unit,
+    ) {
         val connection = open(url)
         val partial = File(target.parentFile, target.name + ".part")
         try {
@@ -48,6 +57,7 @@ object Net {
             val total = connection.contentLengthLong
             target.parentFile?.mkdirs()
             var done = 0L
+            var lastReported = 0L
             var lastPercent = -1
             connection.inputStream.use { input ->
                 partial.outputStream().use { output ->
@@ -57,6 +67,10 @@ object Net {
                         if (read < 0) break
                         output.write(buffer, 0, read)
                         done += read
+                        if (done - lastReported >= 1_000_000) {
+                            lastReported = done
+                            onBytes(done)
+                        }
                         if (total > 0) {
                             val percent = (done * 100 / total).toInt()
                             if (percent != lastPercent) {

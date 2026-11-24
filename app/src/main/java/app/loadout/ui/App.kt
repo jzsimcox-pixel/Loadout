@@ -21,6 +21,7 @@ import app.loadout.data.SystemRecipe
 import app.loadout.device.DeviceDetector
 import app.loadout.install.InstallManager
 import app.loadout.install.InstallState
+import app.loadout.install.ThemeInstaller
 import app.loadout.storage.LogoIndex
 import app.loadout.storage.LogoRenderer
 import app.loadout.storage.Prefs
@@ -34,6 +35,7 @@ private sealed interface Screen {
     data object Systems : Screen
     data class Detail(val systemId: String, val fromReview: Boolean) : Screen
     data object Review : Screen
+    data object Theme : Screen
 }
 
 @Composable
@@ -66,6 +68,8 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
     // Logos found on the device, by system id. Empty until the scan has run.
     var logos by remember { mutableStateOf<Map<String, ImageBitmap>>(emptyMap()) }
     var logoNote by remember { mutableStateOf("") }
+    var logosLoaded by remember { mutableStateOf(false) }
+    var themeSkipped by remember { mutableStateOf(false) }
 
     LaunchedEffect(hasAccess, rescanCount) {
         if (hasAccess) {
@@ -85,6 +89,7 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
             }
             logos = found
             logoNote = note
+            logosLoaded = true
         }
     }
 
@@ -124,7 +129,22 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
                 }
             },
             onRescan = { rescanCount += 1 },
-            onContinue = { screen = Screen.Systems },
+            onContinue = {
+                // Offer a theme only when the logo search has finished and found nothing.
+                val offerTheme = hasAccess && logosLoaded && logos.isEmpty() &&
+                    catalog.themes.isNotEmpty() && !themeSkipped
+                screen = if (offerTheme) Screen.Theme else Screen.Systems
+            },
+        )
+
+        Screen.Theme -> ThemeScreen(
+            themes = catalog.themes,
+            state = ThemeInstaller.state.value,
+            onPick = { option -> ThemeInstaller.install(context, option) { rescanCount += 1 } },
+            onContinue = {
+                themeSkipped = true
+                screen = Screen.Systems
+            },
         )
 
         Screen.Systems -> SystemsScreen(
@@ -133,6 +153,11 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
             selected = chosen,
             logos = logos,
             logoNote = logoNote,
+            onGetLogos = if (hasAccess && logosLoaded && logos.isEmpty() && catalog.themes.isNotEmpty()) {
+                { screen = Screen.Theme }
+            } else {
+                null
+            },
             onToggle = { toggle(it) },
             onDetails = { screen = Screen.Detail(it, fromReview = false) },
             onContinue = {

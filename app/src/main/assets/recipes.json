@@ -1,5 +1,5 @@
 {
-  "version": 8,
+  "version": 9,
   "systems": [
     {
       "id": "nes",
@@ -1026,6 +1026,23 @@
       "support": "experimental",
       "dualScreen": false,
       "folderGames": true
+    }
+  ],
+  "themes": [
+    {
+      "name": "Art Book Next",
+      "repo": "anthonycaccese/art-book-next-es-de",
+      "sizeMb": 205
+    },
+    {
+      "name": "Alekfull-NX",
+      "repo": "anthonycaccese/alekfull-nx-es-de",
+      "sizeMb": 85
+    },
+    {
+      "name": "Epic Noir Next",
+      "repo": "anthonycaccese/epic-noir-next-es-de",
+      "sizeMb": 46
     }
   ]
 }

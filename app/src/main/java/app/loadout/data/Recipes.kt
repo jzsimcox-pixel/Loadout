@@ -70,10 +70,19 @@ data class SystemRecipe(
     val folderGames: Boolean = false,
 )
 
+/** An ES-DE theme Loadout can download. sizeMb is approximate and only shown to the user. */
+@Serializable
+data class ThemeOption(
+    val name: String,
+    val repo: String,
+    val sizeMb: Int = 0,
+)
+
 @Serializable
 data class Catalog(
     val version: Int,
     val systems: List<SystemRecipe>,
+    val themes: List<ThemeOption> = emptyList(),
 ) {
     fun byId(id: String): SystemRecipe? = systems.firstOrNull { it.id == id }
 }

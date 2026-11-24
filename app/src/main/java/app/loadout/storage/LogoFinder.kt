@@ -17,6 +17,10 @@ object LogoIndex {
     private val EXTENSIONS = listOf("svg", "png", "webp")
     private const val MAX_DEPTH = 8
 
+    /** Every folder named "ES-DE" near the top of the given volumes. */
+    fun esdeDirs(volumes: List<File>): List<File> =
+        volumes.flatMap { directories(it, 3) }.filter { it.name.equals("es-de", ignoreCase = true) }
+
     /**
      * Folders to search, user-supplied icons first so they win over theme logos.
      * Themes are looked for in every "ES-DE" folder near the top of each volume, in the
@@ -43,7 +47,7 @@ object LogoIndex {
     }
 
     /** The theme folder the user set inside ES-DE, if any. */
-    private fun customThemeDir(esdeDir: File): File? {
+    fun customThemeDir(esdeDir: File): File? {
         val settings = File(esdeDir, "settings/es_settings.xml")
         if (!settings.isFile) return null
         val text = try {
@@ -80,13 +84,25 @@ object LogoIndex {
         val found = HashMap<String, File>()
         for (root in roots) {
             val userIcons = root.name.equals("icons", ignoreCase = true)
+            var hits = 0
             walk(root, 0) { file, insideLogoFolder ->
                 val systemId = wanted[file.nameWithoutExtension.lowercase()] ?: return@walk
                 if (file.extension.lowercase() !in EXTENSIONS) return@walk
                 if (!userIcons && !insideLogoFolder) return@walk
+                hits++
                 val current = found[systemId]
-                if (current == null || rank(file) < rank(current) && current.parentFile == file.parentFile) {
+                if (current == null || (current.parentFile == file.parentFile && rank(file) < rank(current))) {
                     found[systemId] = file
+                }
+            }
+            if (hits == 0 && !userIcons) {
+                // This theme keeps its logos in a folder not named "logo". Vector images named
+                // after a system are almost always logos, so accept those from anywhere in it.
+                walk(root, 0) { file, _ ->
+                    val systemId = wanted[file.nameWithoutExtension.lowercase()] ?: return@walk
+                    if (file.extension.equals("svg", ignoreCase = true) && systemId !in found) {
+                        found[systemId] = file
+                    }
                 }
             }
         }

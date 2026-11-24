@@ -95,6 +95,14 @@ object Prefs {
             .apply()
     }
 
+    /** Folder name of the ES-DE theme the user installed through Loadout, if any. */
+    fun loadTheme(context: Context): String? =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("theme", null)
+
+    fun saveTheme(context: Context, folderName: String) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString("theme", folderName).apply()
+    }
+
     /** Which emulator the user picked for a system. Null means the recommended one. */
     fun loadEmulatorChoice(context: Context, systemId: String): String? =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("emu:$systemId", null)

@@ -15,6 +15,12 @@ This is a work in progress.
   (Nintendo DS, 3DS and PlayStation 2 so far). Android asks before each install.
 - Creates missing system folders on the card after showing the list.
 
+## ES-DE
+
+"Set up ES-DE" reads ES-DE's own list of emulators and sets, per system, the
+one you chose in Loadout. It shows every change first, skips anything ES-DE
+does not list, and copies each file to `*.loadout-backup` before editing it.
+
 ## System logos
 
 Loadout ships no console logos. Tiles show logos that are already on the
@@ -25,7 +31,6 @@ ES-DE themes. Without either, a plain icon is shown.
 ## Planned
 
 - Download sources for the remaining emulators.
-- Point ES-DE at the installed emulators.
 - Tuned settings, BIOS placement, GPU drivers, hotkeys.
 
 ## What Loadout never does

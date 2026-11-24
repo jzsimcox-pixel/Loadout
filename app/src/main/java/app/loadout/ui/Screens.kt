@@ -54,9 +54,12 @@ import app.loadout.data.SystemRecipe
 import app.loadout.data.ThemeOption
 import app.loadout.device.DeviceInfo
 import app.loadout.install.AppMatcher
+import app.loadout.install.EsdeView
 import app.loadout.install.InstallState
 import app.loadout.install.ThemeState
 import app.loadout.storage.CardScan
+import app.loadout.storage.EsdeRow
+import app.loadout.storage.EsdeStatus
 import app.loadout.storage.FolderPlanner
 import app.loadout.storage.Storage
 import app.loadout.storage.VolumeScan
@@ -631,6 +634,7 @@ fun ReviewScreen(
     emulatorFor: (SystemRecipe) -> Emulator,
     onOpen: (String) -> Unit,
     onFoldersCreated: () -> Unit,
+    onEsde: () -> Unit,
     onBack: () -> Unit,
 ) {
     val scan = volume?.card
@@ -734,7 +738,8 @@ fun ReviewScreen(
                 if (missing.isNotEmpty()) {
                     ActionButton(text = "Create ${missing.size} missing folders", onClick = { confirming = true })
                 }
-                ActionButton(text = "Back to systems", onClick = onBack)
+                ActionButton(text = "Set up ES-DE", onClick = onEsde)
+                ActionButton(text = "Back", onClick = onBack)
             }
         }
     }
@@ -827,6 +832,102 @@ fun ThemeScreen(
                     modifier = if (state is ThemeState.Done) Modifier.focusRequester(firstFocus) else Modifier,
                 )
             }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- ES-DE
+
+@Composable
+fun EsdeScreen(
+    view: EsdeView,
+    message: String?,
+    onApply: (List<EsdeRow>) -> Unit,
+    onUseTheme: (String) -> Unit,
+    onBack: () -> Unit,
+) {
+    val rows = (view as? EsdeView.Ready)?.rows.orEmpty()
+    // Changes that would replace a choice made inside ES-DE start switched off.
+    var included by remember(rows) {
+        mutableStateOf(rows.filter { it.status == EsdeStatus.CHANGE && !it.replacesUserChoice }.map { it.systemId }.toSet())
+    }
+    val toApply = rows.filter { it.systemId in included }
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(view) { requestFocusSafely(firstFocus) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Palette.Bg)
+            .padding(ScreenPadding),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        TopBar("Set up ES-DE", if (view is EsdeView.Ready) "${toApply.size} to change" else "")
+        Label(
+            text = message ?: when (view) {
+                EsdeView.Loading -> "Reading ES-DE's setup…"
+                EsdeView.NotInstalled -> "ES-DE isn't installed on this device. Install it, open it once, then come back."
+                EsdeView.NoDataFolder ->
+                    "ES-DE hasn't been set up yet. Open ES-DE once, choose its data folder, close it, then come back."
+                EsdeView.NoSystemList -> "Loadout couldn't read ES-DE's list of emulators, so it won't change anything."
+                is EsdeView.Ready ->
+                    "Close ES-DE first, or it may undo these changes. Each file is backed up before it is edited. Press A on a row to include or skip it."
+            },
+            size = 13.sp,
+            color = if (message != null) Palette.Text else Palette.Muted,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Palette.Surface)
+                .border(1.dp, Palette.Border, RoundedCornerShape(14.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            rows.forEachIndexed { index, row ->
+                val current = row.current.ifBlank { "its default" }
+                val text = when (row.status) {
+                    EsdeStatus.ALREADY -> "${row.emulator} · already set"
+                    EsdeStatus.NOT_LISTED -> "ES-DE doesn't list ${row.emulator} · stays on $current"
+                    EsdeStatus.NO_SYSTEM -> "ES-DE has no entry for this system"
+                    EsdeStatus.CHANGE ->
+                        if (row.systemId in included) "$current → ${row.emulator} · will change"
+                        else "stays on $current · A to switch to ${row.emulator}"
+                }
+                SetupRow(
+                    name = row.title,
+                    value = text,
+                    onClick = {
+                        if (row.status == EsdeStatus.CHANGE) {
+                            included = if (row.systemId in included) included - row.systemId else included + row.systemId
+                        }
+                    },
+                    modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                )
+            }
+        }
+        BottomBar {
+            KeyHint("A", "Include or skip")
+            KeyHint("B", "Back")
+            Spacer(Modifier.weight(1f))
+            val offer = (view as? EsdeView.Ready)?.themeOffer
+            if (offer != null) {
+                ActionButton(text = "Use downloaded theme", onClick = { onUseTheme(offer) })
+            }
+            if (toApply.isNotEmpty()) {
+                ActionButton(
+                    text = if (toApply.size == 1) "Apply 1 change" else "Apply ${toApply.size} changes",
+                    onClick = { onApply(toApply) },
+                    primary = true,
+                )
+            }
+            ActionButton(
+                text = "Back",
+                onClick = onBack,
+                modifier = if (rows.isEmpty()) Modifier.focusRequester(firstFocus) else Modifier,
+            )
         }
     }
 }

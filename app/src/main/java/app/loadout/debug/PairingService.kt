@@ -15,7 +15,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.RemoteInput
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
-import app.loadout.MainActivity
 import io.github.muntashirakon.adb.android.AdbMdns
 import io.github.muntashirakon.adb.android.AndroidUtils
 import java.util.concurrent.Executors
@@ -185,7 +184,7 @@ class PairingService : Service() {
     private fun searching(note: String?): Notification =
         base(
             "Loadout is waiting for the pairing code",
-            (note?.let { "$it " } ?: "") + "In Developer options, open Wireless debugging and tap \"Pair device with pairing code\".",
+            (note?.let { "$it " } ?: "") + "In Developer options, tap the words \"Wireless debugging\" (not the switch) to open it, then tap \"Pair device with pairing code\".",
         ).setOngoing(true).setOnlyAlertOnce(note == null).addAction(stopAction()).build()
 
     private fun askForCode(note: String?): Notification {
@@ -204,11 +203,9 @@ class PairingService : Service() {
         base("Pairing…", "Checking the code with Android.").setOngoing(true).setProgress(0, 0, true).build()
 
     private fun done(): Notification {
-        val open = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        val pending = PendingIntent.getActivity(this, 3, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        return base("Paired with Loadout", "Tap to go back to Loadout.")
+        return base("Paired with Loadout", "Tap here to go back to Loadout and finish.")
             .setAutoCancel(true)
-            .setContentIntent(pending)
+            .setContentIntent(GuideNotice.returnIntent(this))
             .build()
     }
 

@@ -12,18 +12,19 @@ data class LinkChecks(
 )
 
 /** The steps of the wireless debugging guide, in the order the user meets them. */
-enum class LinkStep { DEVELOPER, WIFI, WIRELESS, NOTIFICATIONS, PAIR, CONNECT, DONE }
+enum class LinkStep { NOTIFICATIONS, DEVELOPER, WIFI, WIRELESS, PAIR, CONNECT, DONE }
 
 object LinkSteps {
     /** The first thing still to do. */
     fun next(checks: LinkChecks): LinkStep = when {
         checks.connected -> LinkStep.DONE
+        // Loadout prompts through notifications while the user is in Android's settings, and
+        // the pairing code is typed into one. A device that is already paired can skip this.
+        !checks.paired && !checks.notifications -> LinkStep.NOTIFICATIONS
         !checks.developer -> LinkStep.DEVELOPER
         !checks.wifi -> LinkStep.WIFI
         checks.wireless == false -> LinkStep.WIRELESS
         checks.paired -> LinkStep.CONNECT
-        // The pairing code is typed into a notification, so that permission comes first.
-        !checks.notifications -> LinkStep.NOTIFICATIONS
         else -> LinkStep.PAIR
     }
 }

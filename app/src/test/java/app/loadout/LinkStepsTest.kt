@@ -14,14 +14,14 @@ class LinkStepsTest {
     @Test
     fun aNewDeviceWalksThroughEveryStepInOrder() {
         var checks = fresh
+        assertEquals(LinkStep.NOTIFICATIONS, LinkSteps.next(checks))
+        checks = checks.copy(notifications = true)
         assertEquals(LinkStep.DEVELOPER, LinkSteps.next(checks))
         checks = checks.copy(developer = true)
         assertEquals(LinkStep.WIFI, LinkSteps.next(checks))
         checks = checks.copy(wifi = true)
         assertEquals(LinkStep.WIRELESS, LinkSteps.next(checks))
         checks = checks.copy(wireless = true)
-        assertEquals(LinkStep.NOTIFICATIONS, LinkSteps.next(checks))
-        checks = checks.copy(notifications = true)
         assertEquals(LinkStep.PAIR, LinkSteps.next(checks))
         checks = checks.copy(paired = true)
         assertEquals(LinkStep.CONNECT, LinkSteps.next(checks))
@@ -33,6 +33,17 @@ class LinkStepsTest {
     fun afterARebootOnlyWirelessDebuggingIsLeft() {
         val checks = fresh.copy(developer = true, wifi = true, notifications = true, paired = true)
         assertEquals(LinkStep.WIRELESS, LinkSteps.next(checks))
+    }
+
+    @Test
+    fun theStepsAreDeclaredInTheOrderTheyAreMet() {
+        assertEquals(
+            listOf(
+                LinkStep.NOTIFICATIONS, LinkStep.DEVELOPER, LinkStep.WIFI, LinkStep.WIRELESS,
+                LinkStep.PAIR, LinkStep.CONNECT, LinkStep.DONE,
+            ),
+            LinkStep.values().toList(),
+        )
     }
 
     @Test

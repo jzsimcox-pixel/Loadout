@@ -25,6 +25,8 @@ import app.loadout.data.Catalog
 import app.loadout.data.Emulator
 import app.loadout.data.SystemRecipe
 import app.loadout.debug.DebugLink
+import app.loadout.debug.GuideNotice
+import app.loadout.debug.LinkSteps
 import app.loadout.debug.LinkChecks
 import app.loadout.debug.LinkResult
 import app.loadout.debug.LinkStep
@@ -107,6 +109,8 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
     var linkChecks by remember { mutableStateOf<LinkChecks?>(null) }
     var linkBusy by remember { mutableStateOf(false) }
     var linkReload by remember { mutableIntStateOf(0) }
+    // The step the user was last sent away to do, to notice when they come back without it done.
+    var linkTried by remember { mutableStateOf<LinkStep?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(hasAccess, rescanCount) {
@@ -153,12 +157,19 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
         Prefs.saveSelection(context, next)
     }
 
-    fun openSettingsPage(action: String) {
+    /**
+     * Opens one of Android's settings pages in its own window, so Loadout stays as it was
+     * underneath. highlight names the row to scroll to; Android versions that don't know the
+     * hint ignore it.
+     */
+    fun openSettingsPage(action: String, highlight: String? = null) {
+        val intent = Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (highlight != null) intent.putExtra(":settings:fragment_args_key", highlight)
         try {
-            context.startActivity(Intent(action))
+            context.startActivity(intent)
         } catch (_: ActivityNotFoundException) {
             try {
-                context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             } catch (_: ActivityNotFoundException) {
                 // No settings app to open.
             }
@@ -411,6 +422,7 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
 
         Screen.Link -> {
             val pairState = DebugLink.pairing.value
+            LaunchedEffect(resumeCount) { GuideNotice.clear(context) }
             LaunchedEffect(linkReload, resumeCount, pairState) {
                 linkBusy = true
                 linkChecks = withContext(Dispatchers.IO) {
@@ -440,17 +452,38 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
                 pairState = pairState,
                 busy = linkBusy,
                 canToggle = DebugLink.canToggleWireless(context),
+                notDoneYet = linkChecks?.let { LinkSteps.next(it) } == linkTried && linkTried != null,
                 onAction = { step ->
+                    linkTried = step.takeIf { it == LinkStep.DEVELOPER || it == LinkStep.WIFI || it == LinkStep.WIRELESS }
                     when (step) {
-                        LinkStep.DEVELOPER -> openSettingsPage(Settings.ACTION_DEVICE_INFO_SETTINGS)
-                        LinkStep.WIFI -> openSettingsPage(Settings.ACTION_WIFI_SETTINGS)
+                        LinkStep.DEVELOPER -> {
+                            GuideNotice.show(
+                                context,
+                                "Loadout setup: Developer options",
+                                "Find \"Build number\" and tap it 7 times, until Android says you are a developer. It may be inside \"Software information\". Then tap here to go back to Loadout.",
+                            )
+                            openSettingsPage(Settings.ACTION_DEVICE_INFO_SETTINGS, highlight = "build_number")
+                        }
+                        LinkStep.WIFI -> {
+                            GuideNotice.show(
+                                context,
+                                "Loadout setup: Wi-Fi",
+                                "Connect to your Wi-Fi network. Then tap here to go back to Loadout.",
+                            )
+                            openSettingsPage(Settings.ACTION_WIFI_SETTINGS)
+                        }
                         LinkStep.WIRELESS -> {
                             if (DebugLink.canToggleWireless(context)) {
                                 DebugLink.setWirelessDebugging(context, true)
                                 linkReload += 1
                             } else {
                                 DebugLink.ownsWireless = true
-                                openSettingsPage(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+                                GuideNotice.show(
+                                    context,
+                                    "Loadout setup: Wireless debugging",
+                                    "Switch on \"Wireless debugging\". If Android asks, tick \"Always allow on this network\" and tap Allow. Then tap here to go back to Loadout.",
+                                )
+                                openSettingsPage(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, highlight = "toggle_adb_wireless")
                             }
                         }
                         LinkStep.NOTIFICATIONS -> {
@@ -463,7 +496,7 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
                         LinkStep.PAIR -> {
                             DebugLink.ownsWireless = true
                             PairingService.start(context)
-                            openSettingsPage(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+                            openSettingsPage(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, highlight = "toggle_adb_wireless")
                         }
                         LinkStep.CONNECT -> linkReload += 1
                         LinkStep.DONE -> backToSettings()

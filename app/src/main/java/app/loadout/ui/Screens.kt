@@ -1080,33 +1080,34 @@ fun SettingsScreen(
 // ---------------------------------------------------------------- Wireless debugging guide
 
 private val linkStepNames = listOf(
+    LinkStep.NOTIFICATIONS to "Notifications",
     LinkStep.DEVELOPER to "Developer options",
     LinkStep.WIFI to "Wi-Fi",
     LinkStep.WIRELESS to "Wireless debugging",
-    LinkStep.NOTIFICATIONS to "Notifications",
     LinkStep.PAIR to "Pairing code",
     LinkStep.CONNECT to "Connect",
 )
 
 private fun linkHint(step: LinkStep, checks: LinkChecks, pairState: PairState, canToggle: Boolean): String = when (step) {
     LinkStep.DEVELOPER ->
-        "Android hides Wireless debugging until Developer options are on. Press the button, find \"Build number\" and tap it 7 times, then come back here."
-    LinkStep.WIFI -> "Wireless debugging only works on Wi-Fi. Connect to your Wi-Fi, then come back here."
+        "Android hides Wireless debugging until Developer options are on. Press the button, find \"Build number\" and tap it 7 times until Android says you are a developer. " +
+            "A Loadout notification repeats this while you are there; tap it to come back."
+    LinkStep.WIFI -> "Wireless debugging only works on Wi-Fi. Press the button, connect to your Wi-Fi, then tap Loadout's notification to come back."
     LinkStep.WIRELESS ->
         if (canToggle) {
             "Loadout can switch Wireless debugging on for you."
         } else {
-            "Press the button, scroll down to Wireless debugging and switch it on. When Android asks, tick \"Always allow on this network\" and tap Allow. Then come back here."
+            "Press the button. Loadout opens Developer options at Wireless debugging: switch it on. When Android asks, tick \"Always allow on this network\" and tap Allow. Then tap Loadout's notification to come back."
         }
     LinkStep.NOTIFICATIONS ->
-        "Android only shows the pairing code on its own screen, so Loadout asks for it in a notification. It needs permission to show one."
+        "Some steps happen in Android's own settings, where Loadout can't show its screen. It guides you there with notifications, and asks for the pairing code in one. Allow notifications to continue."
     LinkStep.PAIR -> when (pairState) {
         is PairState.Failed -> "Pairing didn't finish: ${pairState.message} Press the button to try again."
         PairState.Searching, PairState.CodeNeeded, PairState.Pairing ->
             "Pairing is waiting. Open Wireless debugging in Developer options and tap \"Pair device with pairing code\", then answer Loadout's notification."
         else ->
-            "Press the button. In Developer options, open Wireless debugging and tap \"Pair device with pairing code\". Android shows a 6-digit code. " +
-                "Swipe down from the top of the screen, tap \"Enter pairing code\" on Loadout's notification and type the code. Leave Android's code screen open while you type."
+            "Press the button. In Developer options, tap the words \"Wireless debugging\" (not the switch) to open it, then tap \"Pair device with pairing code\". Android shows a 6-digit code. " +
+                "Swipe down from the top of the screen, tap \"Enter pairing code\" on Loadout's notification and type the code. Leave Android's code screen open while you type. Each of these is repeated in the notification."
     }
     LinkStep.CONNECT -> checks.error ?: "Connecting…"
     LinkStep.DONE ->
@@ -1130,6 +1131,7 @@ fun LinkScreen(
     pairState: PairState,
     busy: Boolean,
     canToggle: Boolean,
+    notDoneYet: Boolean,
     onAction: (LinkStep) -> Unit,
     onRefresh: () -> Unit,
     onBack: () -> Unit,
@@ -1198,6 +1200,14 @@ fun LinkScreen(
                         .height(1.dp)
                         .background(Palette.Border),
                 )
+                if (notDoneYet && !busy) {
+                    Label(
+                        "Android still shows this step as not done. Try it once more.",
+                        size = 14.sp,
+                        color = Palette.Warn,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
                 Label(linkHint(step, checks, pairState, canToggle), size = 14.sp, modifier = Modifier.padding(vertical = 6.dp))
             }
         }

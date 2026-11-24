@@ -1,6 +1,8 @@
 package app.loadout.ui
 
 import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -122,6 +124,13 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
                         }
                     },
                     onCancelInstall = { InstallManager.cancel(context, recipe.emulator) },
+                    onOpenPage = { url ->
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        } catch (_: ActivityNotFoundException) {
+                            // No browser on this device.
+                        }
+                    },
                     onToggle = { toggle(recipe.id) },
                     onBack = { screen = if (current.fromReview) Screen.Review else Screen.Systems },
                 )

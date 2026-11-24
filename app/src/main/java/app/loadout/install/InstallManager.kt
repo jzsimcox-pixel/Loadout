@@ -104,8 +104,15 @@ object InstallManager {
         return null
     }
 
-    private fun installedState(app: InstalledApp): InstallState =
-        InstallState.Installed(app.version, if (app.fromPlayStore) "the Play Store" else null)
+    private fun installedState(app: InstalledApp, emulator: Emulator?): InstallState =
+        InstallState.Installed(
+            app.version,
+            when {
+                app.fromPlayStore -> "the Play Store"
+                emulator?.updates == "self" -> "its own updater"
+                else -> null
+            },
+        )
 
     /** Updates the state from what is on the device, without downloading anything. */
     fun refresh(context: Context, emulator: Emulator) {
@@ -114,7 +121,7 @@ object InstallManager {
         val app = context.applicationContext
         scope.launch {
             val found = findInstalled(app, emulator)
-            set(emulator.name, if (found != null) installedState(found) else InstallState.Idle)
+            set(emulator.name, if (found != null) installedState(found, emulator) else InstallState.Idle)
         }
     }
 
@@ -141,7 +148,7 @@ object InstallManager {
     }
 
     fun install(context: Context, emulator: Emulator) {
-        val source = emulator.source ?: return
+        val source = emulator.source?.takeIf { it.downloadable } ?: return
         if (states[emulator.name]?.busy == true) return
         val app = context.applicationContext
         if (!canInstallApps(app)) {
@@ -155,7 +162,7 @@ object InstallManager {
                 val found = findInstalled(app, emulator)
                 if (found != null && found.fromPlayStore) {
                     // The Play Store owns this copy. Installing another build would create a duplicate.
-                    set(emulator.name, installedState(found))
+                    set(emulator.name, installedState(found, emulator))
                     return@launch
                 }
 
@@ -184,7 +191,7 @@ object InstallManager {
                 val existing = info(app, packageId)
                 if (existing != null && existing.longVersionCode >= archive.longVersionCode) {
                     file.delete()
-                    set(emulator.name, installedState(describe(app, existing)))
+                    set(emulator.name, installedState(describe(app, existing), emulator))
                     return@launch
                 }
 
@@ -231,7 +238,7 @@ object InstallManager {
         val installed = packageId?.let { info(context, it) }
         set(
             emulatorName,
-            if (installed != null) installedState(describe(context, installed)) else InstallState.Installed("unknown"),
+            if (installed != null) installedState(describe(context, installed), null) else InstallState.Installed("unknown"),
         )
     }
 

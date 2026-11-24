@@ -349,6 +349,7 @@ fun DetailScreen(
     onInstall: () -> Unit,
     onAllowInstalls: () -> Unit,
     onCancelInstall: () -> Unit,
+    onOpenPage: (String) -> Unit,
     onToggle: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -358,7 +359,9 @@ fun DetailScreen(
     LaunchedEffect(Unit) { requestFocusSafely(primaryFocus) }
     // An emulator that another source keeps updated gets no install button: Loadout leaves it alone.
     val managedElsewhere = installState is InstallState.Installed && installState.managedBy != null
-    val showInstallButton = recipe.emulator.source != null && !managedElsewhere
+    val source = recipe.emulator.source
+    val showInstallButton = source?.downloadable == true && !managedElsewhere
+    val showPageButton = source?.type == "page" && installState !is InstallState.Installed && !showInstallButton
 
     Column(
         modifier = Modifier
@@ -448,10 +451,18 @@ fun DetailScreen(
                     if (installState == InstallState.WaitingForApproval) {
                         ActionButton(text = "Cancel install", onClick = onCancelInstall)
                     }
+                    if (showPageButton) {
+                        ActionButton(
+                            text = "Open download page",
+                            onClick = { onOpenPage(source?.url.orEmpty()) },
+                            primary = true,
+                            modifier = Modifier.focusRequester(primaryFocus),
+                        )
+                    }
                     ActionButton(
                         text = "Back",
                         onClick = onBack,
-                        modifier = if (showInstallButton) Modifier else Modifier.focusRequester(primaryFocus),
+                        modifier = if (showInstallButton || showPageButton) Modifier else Modifier.focusRequester(primaryFocus),
                     )
                     ActionButton(
                         text = if (on) "Remove from setup" else "Add to setup",
@@ -474,6 +485,8 @@ private fun installStatusText(emulator: Emulator, state: InstallState): String =
     InstallState.Idle ->
         if (emulator.source == null) {
             "Loadout can't install ${emulator.name} yet. Its download source hasn't been set up."
+        } else if (!emulator.source.downloadable) {
+            "Not found on this device. Loadout can't download ${emulator.name} itself yet. Open its official download page, install it, then come back."
         } else {
             "Press Install to check. If ${emulator.name} is already on this device and current, nothing is changed."
         }
@@ -486,6 +499,7 @@ private fun installStatusText(emulator: Emulator, state: InstallState): String =
     is InstallState.Installed -> when (state.managedBy) {
         null -> "Installed · version ${state.version}"
         "the Play Store" -> "Installed · version ${state.version} · the Play Store keeps it updated, so Loadout leaves it alone."
+        "its own updater" -> "Installed · version ${state.version} · it updates itself from inside the app, so Loadout leaves updates to it."
         else -> "Installed · version ${state.version} · it came from another source, so Loadout leaves it alone."
     }
     is InstallState.Failed -> state.message
@@ -608,6 +622,7 @@ fun ReviewScreen(
                         state is InstallState.Failed -> "install failed"
                         state.busy -> "working…"
                         recipe.emulator.source == null -> "no installer yet"
+                        !recipe.emulator.source.downloadable -> "not found"
                         else -> "not confirmed"
                     }
                     val folderText = if (scan?.folderFor(recipe.id) != null) "folder found" else "folder missing"

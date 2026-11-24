@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "systems": [
     {
       "id": "nes",
@@ -22,7 +22,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -47,7 +51,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -74,7 +82,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -97,7 +109,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -120,7 +136,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -145,7 +165,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -168,7 +192,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -192,7 +220,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -215,7 +247,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -241,7 +277,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -265,7 +305,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -287,7 +331,11 @@
         "name": "RetroArch",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -311,14 +359,22 @@
         "bin"
       ],
       "emulator": {
-        "name": "DuckStation"
+        "name": "DuckStation",
+        "source": {
+          "type": "page",
+          "url": "https://www.duckstation.org/android/"
+        }
       },
       "alternates": [
         {
           "name": "RetroArch (SwanStation)",
           "appNames": [
             "RetroArch Plus"
-          ]
+          ],
+          "source": {
+            "type": "page",
+            "url": "https://www.retroarch.com/?page=platforms"
+          }
         }
       ],
       "support": "full",
@@ -343,7 +399,11 @@
         "name": "RetroArch (Mupen64Plus-Next)",
         "appNames": [
           "RetroArch Plus"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.retroarch.com/?page=platforms"
+        }
       },
       "alternates": [
         {
@@ -380,7 +440,16 @@
       },
       "alternates": [
         {
-          "name": "melonDS"
+          "name": "melonDS",
+          "source": {
+            "type": "github",
+            "repo": "rafaelvcaetano/melonDS-android",
+            "assets": [
+              {
+                "match": "prod"
+              }
+            ]
+          }
         }
       ],
       "support": "full",
@@ -438,7 +507,11 @@
         "name": "Dolphin",
         "appNames": [
           "Dolphin Emulator"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://dolphin-emu.org/download/"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -464,7 +537,11 @@
         "name": "Dolphin",
         "appNames": [
           "Dolphin Emulator"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://dolphin-emu.org/download/"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -488,7 +565,11 @@
         "name": "PPSSPP",
         "appNames": [
           "PPSSPP Gold"
-        ]
+        ],
+        "source": {
+          "type": "page",
+          "url": "https://www.ppsspp.org/download/"
+        }
       },
       "alternates": [],
       "support": "full",
@@ -531,7 +612,8 @@
               "match": "legacy"
             }
           ]
-        }
+        },
+        "updates": "self"
       },
       "alternates": [
         {
@@ -559,7 +641,22 @@
         "xcz"
       ],
       "emulator": {
-        "name": "Eden"
+        "name": "Eden",
+        "source": {
+          "type": "github",
+          "repo": "eden-emulator/Releases",
+          "assets": [
+            {
+              "match": "standard"
+            },
+            {
+              "match": "arm64|aarch64"
+            },
+            {
+              "match": "\\.apk$"
+            }
+          ]
+        }
       },
       "alternates": [
         {
@@ -585,7 +682,12 @@
         "m3u"
       ],
       "emulator": {
-        "name": "Flycast"
+        "name": "Flycast",
+        "source": {
+          "type": "github",
+          "repo": "flyinghead/flycast",
+          "assets": []
+        }
       },
       "alternates": [],
       "support": "full",
@@ -618,7 +720,11 @@
           "name": "RetroArch (Beetle Saturn)",
           "appNames": [
             "RetroArch Plus"
-          ]
+          ],
+          "source": {
+            "type": "page",
+            "url": "https://www.retroarch.com/?page=platforms"
+          }
         }
       ],
       "support": "full",
@@ -655,7 +761,12 @@
         "psvita"
       ],
       "emulator": {
-        "name": "Vita3K"
+        "name": "Vita3K",
+        "source": {
+          "type": "github",
+          "repo": "Vita3K/Vita3K-Android",
+          "assets": []
+        }
       },
       "alternates": [],
       "support": "install-first",
@@ -675,7 +786,12 @@
         "ps3"
       ],
       "emulator": {
-        "name": "aPS3e"
+        "name": "aPS3e",
+        "source": {
+          "type": "github",
+          "repo": "aenu1/aps3e",
+          "assets": []
+        }
       },
       "alternates": [
         {

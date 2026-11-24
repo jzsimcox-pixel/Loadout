@@ -14,13 +14,20 @@ data class AssetRule(
     val minSdk: Int = 0,
 )
 
-/** Where an emulator is downloaded from. Only "github" is supported so far. */
+/**
+ * Where an emulator comes from.
+ * type "github": Loadout downloads the APK from the latest release of repo.
+ * type "page": Loadout cannot download it itself and opens url, the official download page.
+ */
 @Serializable
 data class Source(
     val type: String,
-    val repo: String,
+    val repo: String = "",
+    val url: String = "",
     val assets: List<AssetRule> = emptyList(),
-)
+) {
+    val downloadable: Boolean get() = type == "github" && repo.isNotBlank()
+}
 
 @Serializable
 data class Emulator(
@@ -29,6 +36,8 @@ data class Emulator(
     val source: Source? = null,
     /** Other names the installed app may show under, such as a paid edition. */
     val appNames: List<String> = emptyList(),
+    /** "self" means the app updates itself, so Loadout installs it once and then leaves updates to it. */
+    val updates: String = "loadout",
 )
 
 /**

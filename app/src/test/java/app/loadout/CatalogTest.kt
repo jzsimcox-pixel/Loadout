@@ -40,6 +40,20 @@ class CatalogTest {
     }
 
     @Test
+    fun everySourceIsUsable() {
+        val emulators = catalog.systems.flatMap { listOf(it.emulator) + it.alternates }
+        for (emulator in emulators) {
+            val source = emulator.source ?: continue
+            when (source.type) {
+                "github" -> assertTrue(emulator.name, Regex("[\\w.-]+/[\\w.-]+").matches(source.repo))
+                "page" -> assertTrue(emulator.name, source.url.startsWith("https://"))
+                else -> throw AssertionError("Unknown source type for ${emulator.name}: ${source.type}")
+            }
+            source.assets.forEach { Regex(it.match) }
+        }
+    }
+
+    @Test
     fun knownDevicesMatchTheirProfiles() {
         assertEquals("ayn-thor", DeviceProfiles.match("AYN", "Thor", 2).first)
         assertEquals(2, DeviceProfiles.match("AYN", "Thor", 1).third)

@@ -161,46 +161,58 @@ write("armsx2/armsx2-settings.json", json.dumps({"global": glob}, indent=2))
 
 p = read("armsx2/PCSX2-Android.ini")
 p = re.sub(r"^BIOS = .*$", "BIOS = {{PS2_BIOS_FILE}}", p, flags=re.M)
-p = re.sub(r"^Slot1_Filename = .*$", "Slot1_Filename = Mcd001.ps2", p, flags=re.M)
-p = re.sub(r"^Slot2_Filename = .*$", "Slot2_Filename = Mcd002.ps2", p, flags=re.M)
+# Memory card names are the user's own; a merge leaves theirs alone.
+p = re.sub(r"^Slot\d+_Filename = .*\n", "", p, flags=re.M)
 p = re.sub(r"\n{3,}", "\n\n", p)
 write("armsx2/PCSX2-Android.ini", p)
 
 # ----------------------------------------------------------------- manifest
+RA_FILES = "{{INTERNAL}}/Android/data/{{PKG}}/files"
+RA_SHARED = "{{INTERNAL}}/RetroArch"
+CORES = ["Nestopia", "Snes9x", "Genesis Plus GX", "Gambatte", "mGBA", "SwanStation"]
 manifest = {
-    "version": 1,
+    "version": 2,
     "profile": "ayn-odin2-portal",
+    "profileName": "AYN Odin 2 Portal",
     "placeholders": {
+        "INTERNAL": "internal storage",
+        "PKG": "the emulator's Android package name",
         "BIOS_DIR": "the BIOS folder Loadout found or created",
         "RETROARCH_DIR": "RetroArch's folder on internal storage or the card",
         "RETROARCH_DATA": "RetroArch's own app data folder",
         "PS2_BIOS_FILE": "file name of the PS2 BIOS Loadout found",
     },
+    # root: a folder the emulator creates itself. Loadout only writes when it exists.
+    # path: the file inside root. mode: how the template is combined with what is there.
     "emulators": {
         "RetroArch": {
             "files": [
-                {"template": "retroarch/retroarch.cfg.patch", "target": "retroarch.cfg", "mode": "merge-cfg"},
-                *[{"template": "retroarch/config/%s/%s.opt" % (c, c),
-                   "target": "config/%s/%s.opt" % (c, c), "mode": "replace"}
-                  for c in ["Nestopia", "Snes9x", "Genesis Plus GX", "Gambatte", "mGBA", "SwanStation"]],
-                {"template": "retroarch/shaders/crt-trinitron.slangp", "target": "config/global.slangp",
-                 "mode": "replace", "optional": "shader"},
+                {"template": "retroarch/retroarch.cfg.patch", "root": RA_FILES,
+                 "path": "retroarch.cfg", "mode": "merge-cfg"},
+                *[{"template": "retroarch/config/%s/%s.opt" % (c, c), "root": RA_SHARED,
+                   "path": "config/%s/%s.opt" % (c, c), "mode": "merge-cfg"} for c in CORES],
+                {"template": "retroarch/shaders/crt-trinitron.slangp", "root": RA_SHARED,
+                 "path": "config/global.slangp", "mode": "replace", "optional": "shader"},
             ],
             "resolution": [{"file": "retroarch/config/SwanStation/SwanStation.opt",
                             "key": "swanstation_GPU_ResolutionScale"}],
         },
         "Dolphin": {
-            "files": [{"template": "dolphin/" + n, "target": "Config/" + n, "mode": "merge-ini"}
+            "files": [{"template": "dolphin/" + n, "root": "{{INTERNAL}}/Android/data/{{PKG}}/files",
+                       "path": "Config/" + n, "mode": "merge-ini"}
                       for n in ["Dolphin.ini", "GFX.ini", "GCPadNew.ini", "WiimoteNew.ini"]],
             "resolution": [{"file": "dolphin/GFX.ini", "key": "Settings/InternalResolution"}],
         },
         "Eden": {
-            "files": [{"template": "eden/config.ini.patch", "target": "config/config.ini", "mode": "merge-ini"}],
+            "files": [{"template": "eden/config.ini.patch", "root": "{{INTERNAL}}/Android/data/{{PKG}}/files",
+                       "path": "config/config.ini", "mode": "merge-ini"}],
         },
         "ARMSX2": {
             "files": [
-                {"template": "armsx2/armsx2-settings.json", "target": "armsx2-settings.json", "mode": "merge-json"},
-                {"template": "armsx2/PCSX2-Android.ini", "target": "PCSX2-Android.ini", "mode": "replace"},
+                {"template": "armsx2/armsx2-settings.json", "root": "{{INTERNAL}}/Armsx2",
+                 "path": "armsx2-settings.json", "mode": "merge-json"},
+                {"template": "armsx2/PCSX2-Android.ini", "root": "{{INTERNAL}}/Armsx2",
+                 "path": "PCSX2-Android.ini", "mode": "merge-ini"},
             ],
             "resolution": [
                 {"file": "armsx2/armsx2-settings.json", "key": "global/upscaleFloat"},

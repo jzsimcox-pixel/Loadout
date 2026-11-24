@@ -24,6 +24,8 @@ import app.loadout.install.EsdeHookup
 import app.loadout.install.EsdeView
 import app.loadout.install.InstallManager
 import app.loadout.install.InstallState
+import app.loadout.install.SettingsHookup
+import app.loadout.install.SettingsView
 import app.loadout.install.ThemeInstaller
 import app.loadout.storage.EsdePick
 import app.loadout.storage.LogoIndex
@@ -42,6 +44,7 @@ private sealed interface Screen {
     data object Review : Screen
     data object Theme : Screen
     data object Esde : Screen
+    data object Settings : Screen
 }
 
 @Composable
@@ -87,6 +90,9 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
     var esdeView by remember { mutableStateOf<EsdeView>(EsdeView.Loading) }
     var esdeMessage by remember { mutableStateOf<String?>(null) }
     var esdeReload by remember { mutableIntStateOf(0) }
+    var settingsView by remember { mutableStateOf<SettingsView>(SettingsView.Loading) }
+    var settingsMessage by remember { mutableStateOf<String?>(null) }
+    var settingsReload by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(hasAccess, rescanCount) {
@@ -137,7 +143,7 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
         val current = screen
         screen = when {
             current is Screen.Detail && current.fromReview -> Screen.Review
-            current == Screen.Esde -> Screen.Review
+            current == Screen.Esde || current == Screen.Settings -> Screen.Review
             current is Screen.Detail || current == Screen.Review -> Screen.Systems
             else -> Screen.Detect
         }
@@ -260,6 +266,11 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
                     esdeMessage = null
                     screen = Screen.Esde
                 },
+                onSettings = {
+                    settingsView = SettingsView.Loading
+                    settingsMessage = null
+                    screen = Screen.Settings
+                },
                 onBack = { screen = Screen.Systems },
             )
         }
@@ -300,6 +311,30 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int, crashReport: String?, onCrash
                             "Loadout couldn't change the theme. Pick it in ES-DE under UI Settings."
                         }
                         esdeReload += 1
+                    }
+                },
+                onBack = { screen = Screen.Review },
+            )
+        }
+
+        Screen.Settings -> {
+            LaunchedEffect(settingsReload, resumeCount) {
+                settingsView = withContext(Dispatchers.IO) { SettingsHookup.load(context, catalog, device) }
+            }
+            SettingsScreen(
+                view = settingsView,
+                message = settingsMessage,
+                onApply = { rows ->
+                    scope.launch {
+                        val files = rows.sumOf { it.files.size }
+                        val failed = withContext(Dispatchers.IO) { SettingsHookup.apply(rows) }
+                        val done = files - failed.size
+                        settingsMessage = if (failed.isEmpty()) {
+                            "Done. $done ${if (done == 1) "file" else "files"} updated. Each original is saved beside it as .loadout-backup."
+                        } else {
+                            "$done updated, ${failed.size} not written. A file that changed since Loadout compared it is skipped; try again."
+                        }
+                        settingsReload += 1
                     }
                 },
                 onBack = { screen = Screen.Review },

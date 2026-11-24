@@ -56,11 +56,15 @@ import app.loadout.device.DeviceInfo
 import app.loadout.install.AppMatcher
 import app.loadout.install.EsdeView
 import app.loadout.install.InstallState
+import app.loadout.install.SettingsView
 import app.loadout.install.ThemeState
 import app.loadout.storage.CardScan
 import app.loadout.storage.EsdeRow
 import app.loadout.storage.EsdeStatus
 import app.loadout.storage.FolderPlanner
+import app.loadout.storage.SettingChange
+import app.loadout.storage.SettingsRow
+import app.loadout.storage.SettingsStatus
 import app.loadout.storage.Storage
 import app.loadout.storage.VolumeScan
 
@@ -635,6 +639,7 @@ fun ReviewScreen(
     onOpen: (String) -> Unit,
     onFoldersCreated: () -> Unit,
     onEsde: () -> Unit,
+    onSettings: () -> Unit,
     onBack: () -> Unit,
 ) {
     val scan = volume?.card
@@ -739,6 +744,7 @@ fun ReviewScreen(
                     ActionButton(text = "Create ${missing.size} missing folders", onClick = { confirming = true })
                 }
                 ActionButton(text = "Set up ES-DE", onClick = onEsde)
+                ActionButton(text = "Emulator settings", onClick = onSettings)
                 ActionButton(text = "Back", onClick = onBack)
             }
         }
@@ -922,6 +928,130 @@ fun EsdeScreen(
             if (toApply.isNotEmpty()) {
                 ActionButton(
                     text = if (toApply.size == 1) "Apply 1 change" else "Apply ${toApply.size} changes",
+                    onClick = { onApply(toApply) },
+                    primary = true,
+                )
+            }
+            ActionButton(
+                text = "Back",
+                onClick = onBack,
+                modifier = if (rows.isEmpty()) Modifier.focusRequester(firstFocus) else Modifier,
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------- Emulator settings
+
+private fun shorten(value: String): String = if (value.length > 38) value.take(37) + "…" else value
+
+private fun changeText(change: SettingChange): String {
+    val old = change.old
+    return if (old == null) {
+        "${change.key}: ${shorten(change.new)} (added)"
+    } else {
+        "${change.key}: ${shorten(old.ifEmpty { "empty" })} → ${shorten(change.new)}"
+    }
+}
+
+private fun plural(count: Int, one: String, many: String): String = if (count == 1) "1 $one" else "$count $many"
+
+@Composable
+fun SettingsScreen(
+    view: SettingsView,
+    message: String?,
+    onApply: (List<SettingsRow>) -> Unit,
+    onBack: () -> Unit,
+) {
+    val ready = view as? SettingsView.Ready
+    val rows = ready?.rows.orEmpty()
+    var skipped by remember(rows) { mutableStateOf(emptySet<String>()) }
+    val toApply = rows.filter { it.status == SettingsStatus.READY && it.emulator !in skipped }
+    val changeCount = toApply.sumOf { it.changes.size }
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(view) { requestFocusSafely(firstFocus) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Palette.Bg)
+            .padding(ScreenPadding),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        TopBar("Emulator settings", if (ready != null) "$changeCount to change" else "")
+        Label(
+            text = message ?: when (view) {
+                SettingsView.Loading -> "Comparing your emulators' settings…"
+                SettingsView.NoTemplates -> "Loadout couldn't read its settings templates, so it won't change anything."
+                is SettingsView.Ready ->
+                    (if (view.tunedOn != null) "These settings were tuned on the ${view.tunedOn}; controls may differ here. " else "") +
+                        "Close the emulators first, or they may undo these changes. Each file is backed up before it is edited. Press A on a row to include or skip it."
+            },
+            size = 13.sp,
+            color = if (message != null) Palette.Text else Palette.Muted,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Palette.Surface)
+                .border(1.dp, Palette.Border, RoundedCornerShape(14.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            rows.forEachIndexed { index, row ->
+                val included = row.emulator !in skipped
+                val locked = if (row.lockedFiles > 0) " · ${plural(row.lockedFiles, "file needs", "files need")} Shizuku" else ""
+                val unread = if (row.unreadable > 0) " · ${plural(row.unreadable, "file", "files")} left alone, unreadable" else ""
+                val text = when (row.status) {
+                    SettingsStatus.NOT_INSTALLED -> "not installed"
+                    SettingsStatus.NO_FOLDER -> "open it once so it creates its settings, then come back$unread"
+                    SettingsStatus.LOCKED -> "Android keeps this folder closed · needs Shizuku"
+                    SettingsStatus.MATCHES -> "already matches$locked$unread"
+                    SettingsStatus.READY ->
+                        if (included) "${plural(row.changes.size, "setting", "settings")} will change$locked$unread"
+                        else "skipped · A to include"
+                }
+                SetupRow(
+                    name = row.emulator,
+                    value = text,
+                    onClick = {
+                        if (row.status == SettingsStatus.READY) {
+                            skipped = if (included) skipped + row.emulator else skipped - row.emulator
+                        }
+                    },
+                    modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                )
+                if (row.status == SettingsStatus.READY && included) {
+                    val shown = row.changes.take(6)
+                    for (change in shown) {
+                        Label(
+                            changeText(change),
+                            size = 12.sp,
+                            color = Palette.Muted,
+                            maxLines = 1,
+                            modifier = Modifier.padding(start = 22.dp, end = 10.dp, bottom = 4.dp),
+                        )
+                    }
+                    if (row.changes.size > shown.size) {
+                        Label(
+                            "and ${row.changes.size - shown.size} more",
+                            size = 12.sp,
+                            color = Palette.Muted,
+                            modifier = Modifier.padding(start = 22.dp, bottom = 6.dp),
+                        )
+                    }
+                }
+            }
+        }
+        BottomBar {
+            KeyHint("A", "Include or skip")
+            KeyHint("B", "Back")
+            Spacer(Modifier.weight(1f))
+            if (toApply.isNotEmpty()) {
+                ActionButton(
+                    text = "Apply ${plural(changeCount, "change", "changes")}",
                     onClick = { onApply(toApply) },
                     primary = true,
                 )

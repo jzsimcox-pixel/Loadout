@@ -8,6 +8,7 @@ import android.net.NetworkCapabilities
 import android.provider.Settings
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.NotificationManagerCompat
+import app.loadout.storage.EsdePlanner
 import app.loadout.storage.FileDoor
 import io.github.muntashirakon.adb.AdbPairingRequiredException
 import java.io.ByteArrayOutputStream
@@ -256,7 +257,7 @@ object DebugLink {
         staged.writeText(text)
         try {
             val q = quote(path)
-            val backup = quote(path + app.loadout.storage.EsdePlanner.BACKUP_SUFFIX)
+            val backup = quote(path + EsdePlanner.BACKUP_SUFFIX)
             val result = run(app, "[ -e $backup ] || cp $q $backup; [ -e $backup ] && cat ${quote(staged.path)} > $q && printf OK")
             if (result != "OK") throw IOException("Android wouldn't let the file be written: ${result.take(200)}")
             if (read(app, path) != text) throw IOException("The file didn't read back the same after writing.")

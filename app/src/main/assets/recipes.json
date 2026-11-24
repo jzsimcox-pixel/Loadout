@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "systems": [
     {
       "id": "nes",
@@ -786,14 +786,41 @@
         "ps3"
       ],
       "emulator": {
-        "name": "aPS3e",
+        "name": "ARMSX3",
         "source": {
           "type": "github",
-          "repo": "aenu1/aps3e",
-          "assets": []
+          "repo": "ARMSX2/ARMSX3",
+          "assets": [
+            {
+              "match": "a15|sdk35",
+              "minSdk": 35
+            },
+            {
+              "match": "a13|sdk33",
+              "minSdk": 33
+            },
+            {
+              "match": "a11|sdk30",
+              "minSdk": 30
+            },
+            {
+              "match": "legacy"
+            },
+            {
+              "match": "\\.apk$"
+            }
+          ]
         }
       },
       "alternates": [
+        {
+          "name": "aPS3e",
+          "source": {
+            "type": "github",
+            "repo": "aenu1/aps3e",
+            "assets": []
+          }
+        },
         {
           "name": "RPCSX"
         }

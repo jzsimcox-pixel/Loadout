@@ -59,6 +59,15 @@ object Storage {
         ).first()
     }
 
+    /** Every mounted storage volume: internal storage and any SD card. */
+    fun volumeRoots(context: Context): List<File> {
+        val manager = context.getSystemService(StorageManager::class.java)
+        val roots = manager?.storageVolumes.orEmpty()
+            .filter { it.state == Environment.MEDIA_MOUNTED }
+            .mapNotNull { it.directory }
+        return roots.ifEmpty { listOf(Environment.getExternalStorageDirectory()) }
+    }
+
     fun formatSize(bytes: Long): String {
         val gb = bytes / 1_000_000_000.0
         return if (gb >= 100) "${gb.toInt()} GB" else String.format("%.1f GB", gb)

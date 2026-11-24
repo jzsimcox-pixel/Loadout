@@ -12,6 +12,8 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import app.loadout.data.Catalog
 import app.loadout.data.Emulator
@@ -19,6 +21,8 @@ import app.loadout.data.SystemRecipe
 import app.loadout.device.DeviceDetector
 import app.loadout.install.InstallManager
 import app.loadout.install.InstallState
+import app.loadout.storage.LogoIndex
+import app.loadout.storage.LogoRenderer
 import app.loadout.storage.Prefs
 import app.loadout.storage.Storage
 import app.loadout.storage.VolumeScan
@@ -59,6 +63,19 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
     }
 
     val choices = remember { mutableStateMapOf<String, String>() }
+    // Logos found on the device, by system id. Empty until the scan has run.
+    var logos by remember { mutableStateOf<Map<String, ImageBitmap>>(emptyMap()) }
+
+    LaunchedEffect(hasAccess, rescanCount) {
+        if (hasAccess) {
+            logos = withContext(Dispatchers.IO) {
+                val files = LogoIndex.find(LogoIndex.searchRoots(Storage.volumeRoots(context)), catalog)
+                files.mapNotNull { (id, file) ->
+                    LogoRenderer.render(file, 360, 120)?.let { id to it.asImageBitmap() }
+                }.toMap()
+            }
+        }
+    }
 
     fun chosenEmulator(recipe: SystemRecipe): Emulator {
         val name = choices[recipe.id] ?: Prefs.loadEmulatorChoice(context, recipe.id)
@@ -103,6 +120,7 @@ fun LoadoutApp(catalog: Catalog, resumeCount: Int) {
             catalog = catalog,
             scan = volume?.card,
             selected = chosen,
+            logos = logos,
             onToggle = { toggle(it) },
             onDetails = { screen = Screen.Detail(it, fromReview = false) },
             onContinue = {

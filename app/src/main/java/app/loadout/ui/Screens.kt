@@ -1,6 +1,7 @@
 package app.loadout.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,11 +38,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -214,10 +217,18 @@ fun SystemsScreen(
     catalog: Catalog,
     scan: CardScan?,
     selected: Set<String>,
+    logos: Map<String, ImageBitmap>,
     onToggle: (String) -> Unit,
     onDetails: (String) -> Unit,
     onContinue: () -> Unit,
 ) {
+    // Systems in the setup come first, then the rest, each group in alphabetical order.
+    // The order is fixed when the screen opens so tiles do not jump while you toggle them.
+    val ordered = remember(catalog) {
+        catalog.systems.sortedWith(
+            compareByDescending<SystemRecipe> { it.id in selected }.thenBy { it.name.lowercase() },
+        )
+    }
     val firstTile = remember { FocusRequester() }
     LaunchedEffect(Unit) { requestFocusSafely(firstTile) }
 
@@ -251,9 +262,10 @@ fun SystemsScreen(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            itemsIndexed(catalog.systems, key = { _, item -> item.id }) { index, recipe ->
+            itemsIndexed(ordered, key = { _, item -> item.id }) { index, recipe ->
                 SystemTile(
                     recipe = recipe,
+                    logo = logos[recipe.id],
                     games = scan?.gamesFor(recipe.id) ?: 0,
                     on = recipe.id in selected,
                     onToggle = { onToggle(recipe.id) },
@@ -276,6 +288,7 @@ fun SystemsScreen(
 @Composable
 private fun SystemTile(
     recipe: SystemRecipe,
+    logo: ImageBitmap?,
     games: Int,
     on: Boolean,
     onToggle: () -> Unit,
@@ -319,19 +332,36 @@ private fun SystemTile(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Palette.IconBg),
-                contentAlignment = Alignment.Center,
-            ) {
-                SystemIcon(recipe.kind, size = 20.dp)
+            if (logo != null) {
+                Image(
+                    bitmap = logo,
+                    contentDescription = recipe.name,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(34.dp),
+                    contentScale = ContentScale.Fit,
+                    alignment = Alignment.CenterStart,
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Palette.IconBg),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    SystemIcon(recipe.kind, size = 20.dp)
+                }
             }
-            if (on) CheckMark()
+            if (on) {
+                Spacer(Modifier.width(6.dp))
+                CheckMark()
+            }
         }
         Column {
-            Label(recipe.code, size = 15.sp, weight = FontWeight.Bold, maxLines = 1)
+            if (logo == null) {
+                Label(recipe.code, size = 15.sp, weight = FontWeight.Bold, maxLines = 1)
+            }
             Label(recipe.name, size = 11.sp, weight = FontWeight.Medium, maxLines = 1)
             Label(note, size = 10.sp, color = Palette.Muted, maxLines = 1)
         }

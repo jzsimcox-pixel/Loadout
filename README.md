@@ -15,6 +15,13 @@ This is a work in progress.
   (Nintendo DS, 3DS and PlayStation 2 so far). Android asks before each install.
 - Creates missing system folders on the card after showing the list.
 
+## System logos
+
+Loadout ships no console logos. Tiles show logos that are already on the
+device: first any images you place in `Loadout/icons` (named after the system
+folder, for example `nes.png` or `ps2.svg`), then the logos inside installed
+ES-DE themes. Without either, a plain icon is shown.
+
 ## Planned
 
 - Download sources for the remaining emulators.
